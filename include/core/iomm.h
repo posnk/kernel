@@ -103,6 +103,15 @@ typedef struct {
 } iomm_ref_t;
 
 /**
+ * Internal structure, used for parameter passing to iterator functions
+ */
+typedef struct {
+	physaddr_t			 start;
+	physaddr_t			 end;
+	llist_t				*exclude;
+} iomm_sparam_t;
+
+/**
  * Registers a range of IO memory
  * @param start The start of the IO memory range
  * @param end	The end of the IO memory range
