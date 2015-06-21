@@ -78,6 +78,27 @@ int				 iomm_area_contained_iterator( llist_t *_item, void *_param )
 }
 	
 /**
+ * Internal function, safely deletes an empty area
+ * @param area		The area to delete
+ * @param reclaim	Whether to reclaim the area as general purpose memory
+ */ 
+void			 iomm_delete_area ( iomm_area_t *area, int reclaim )
+{
+	
+	assert ( area != NULL );
+	
+	// Check whether the area has refcount zero
+	assert ( area->refcount == 0 );
+	
+	// If we were asked to reclaim the memory, return it to the physical mm
+	if ( reclaim )
+		physmm_free_range( area->start, area->end );
+	
+	// Free the merged-in area
+	free( area );
+}
+	
+/**
  * Internal function, merges two io memory areas
  * @param dest	The area to merge into
  * @param src	The area that will be destroyed by merging
@@ -144,14 +165,10 @@ void			 iomm_merge_areas ( iomm_area_t *dest, iomm_area_t *src )
 		
 	}
 	
-	// Account for any non-child references
-	dest->refcount += src->refcount;
-	
 	// Free the merged-in area
-	free( src );
+	iomm_delete_area( src );
 
 }
-	
 	
 /**
  * Internal function, gets or creates an area containing the specified range
@@ -164,6 +181,9 @@ iomm_area_t		*iomm_get_area ( physaddr_t start, physaddr_t end )
 {
 	iomm_area_t		*area, area2;
 	iomm_sparam_t	 range_param;
+	
+	assert ( ( start & PHYSMM_PAGE_ADDRESS_MASK ) == 0 );
+	assert ( ( end & PHYSMM_PAGE_ADDRESS_MASK )
 	
 	// Set up search parameters
 	range_param.start	= start;
@@ -267,7 +287,66 @@ iomm_area_t		*iomm_get_area ( physaddr_t start, physaddr_t end )
 	return area;
 }
 
+/** Matches any range that collides with the parameter*/
+int				 iomm_range_collision_iterator( llist_t *_item, void *_param )
+{
+	iomm_range_t	*item  = (iomm_range_t *) _item;
+	iomm_sparam_t	*param = (iomm_sparam_t *) _param;
+	
+	return  (_item != param->exclude) &&
+			(item->start <= param->end) &&
+			(item->end >= param->start);
+}
+
 iomm_range_t	*iomm_register_range ( physaddr_t start, physaddr_t end )
 {
+	iomm_area_t		*area;
+	iomm_range_t	*range;
+	iomm_sparam_t	 range_param;
+	physaddr_t		 pstart, pend;
 	
+	// Calculate the page bounded start and end addresses
+	//  Page bounded start is rounded down by masking the page index bits
+	pstart	= start & ~PHYSMM_PAGE_ADDRESS_MASK;
+	//	Page bounded end is rounded up
+	pend	= ( end + PHYSMM_PAGE_ADDRESS_MASK ) & ~PHYSMM_PAGE_ADDRESS_MASK;
+	
+	// Get the area that will contain the region
+	area = iomm_get_area( pstart, pend );
+	
+	// Set up the search parameters
+	range_param.start	= start;
+	range_param.end		= end;
+	range_param.exclude	= NULL;
+	
+	// Check whether the range collides with any exisitng IO ranges
+	range = (iomm_range_t *) llist_iterate_select(	&(area->io_list), 
+												   iomm_range_collision_iterator
+													&range_param);
+	
+	// If there is a collision, return NULL
+	if ( range != NULL )
+		return NULL;
+
+	// Allocate memory for the range descriptor
+	range = malloc( sizeof( iomm_range_t ) );
+	
+	// Check whether the allocation succeeded
+	assert ( range != NULL );	
+	
+	// Fill the fields of the descriptor
+	range->area		= area;
+	range->start	= start;
+	range->end		= end;
+	range->refcount = 0;
+	
+	// Add the range to the area
+	llist_add_end( &(area->io_list), range );
+	
+	// Bump the area's refcount
+	area->refcoun++;
+	
+	return range;
 }
+
+
