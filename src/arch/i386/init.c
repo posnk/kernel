@@ -9,9 +9,9 @@
  * 30-03-2014 - Created
  */
 
-#include "core/heap.h"
-#include "core/physmm.h"
-#include "core/paging.h"
+#include <core/heap.h>
+#include <core/physmm.h>
+#include <core/paging.h>
 #include "arch/i386/pic.h"
 #include "arch/i386/pit.h"
 #include "arch/i386/x86.h"
@@ -31,46 +31,7 @@ vbe_mode_info_t	  vbe_mode;
 
 extern uint32_t i386_start_kheap;
 
-uint32_t i386_init_multiboot_memprobe(multiboot_info_t* mbt)
-{
-	uint32_t available = 0;
-	multiboot_memory_map_t* mmapr= (multiboot_memory_map_t*) (((uintptr_t)mbt->mmap_addr) + 0xC0000000) ;
-	multiboot_memory_map_t* mmap = mmapr;
-	physmm_free_range(0x400000, 0x800000);
-	while(((uintptr_t)mmap) < (((uintptr_t)mmapr) + mbt->mmap_length)) {
-			/*earlycon_printf("MMAP ENTRY baseh=0x%x basel=0x%x lenh=0x%x lenl=0x%x type=0x%x\n",
-				 mmap->base_addr_high,
-				 mmap->base_addr_low,
-				 mmap->length_high,
-				 mmap->length_low,
-				 mmap->type);*/
-			// TODO : Verify page alignment of mmap entries
-			if (mmap->base_addr_low >= 0x100000){
-			
-			if ((mmap->type == 1) && (mmap->base_addr_high == 0)) {
-				if (mmap->length_high != 0)
-					mmap->length_low = 0xFFFFFFFF - mmap->base_addr_low;
-				available += mmap->length_low;
-				physmm_free_range(mmap->base_addr_low, mmap->base_addr_low+mmap->length_low);
-			}
-			
-		}
-			mmap = (multiboot_memory_map_t*) ( (unsigned int)mmap + mmap->size + sizeof(unsigned int) );
-	}
-	return available;
-}
 /*
-void i386_init_reserve_modules(multiboot_info_t *mbt)
-{
-	unsigned int i;
-	multiboot_module_t *modules = (multiboot_module_t *) (mbt->mods_addr + 0xC0000000);
-	physmm_claim_range((physaddr_t)mbt->mods_addr, ((physaddr_t)mbt->mods_addr) + sizeof(multiboot_module_t)*(mbt->mods_count));
-	for (i = 0; i < mbt->mods_count; i++){
-		physmm_claim_range((physaddr_t)modules[i].string, (physaddr_t)modules[i].string + 80);
-		physmm_claim_range((physaddr_t)modules[i].mod_start, (physaddr_t)modules[i].mod_end);
-	}
-}
-
 void i386_init_load_modules(multiboot_info_t *mbt)
 {
 	unsigned int i;

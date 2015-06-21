@@ -14,7 +14,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
-
+#include <core/llist.h>
 #include "config.h"
 
 #ifdef __cplusplus
@@ -47,9 +47,9 @@ extern "C" {
 
 extern uint32_t physmm_bitmap[PHYSMM_BITMAP_SIZE];
 
-void physmm_free_range(physaddr_t start, physaddr_t end);
+void physmm_free_range	(physaddr_t start, physaddr_t end);
 
-void physmm_claim_range(physaddr_t start, physaddr_t end);
+void physmm_claim_range	(physaddr_t start, physaddr_t end);
 
 physaddr_t physmm_count_free();
 physaddr_t physmm_alloc_bmcopy() ;
