@@ -1,0 +1,6 @@
+ARCH(i386)
+LINKOPT(kernel,crt)
+LINKOPT(kernel,core)
+LINKOPT(bootstrap,crt)
+ALLTARGET(kernel)
+ALLTARGET(bootstrap)

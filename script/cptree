@@ -1,0 +1,5 @@
+#!/bin/sh
+# Copy a directory tree;
+DIRD=`readlink -f "$2"`
+cd "$1"
+find . -type d -links 2 -exec mkdir -p "$DIRD/{}" \;
