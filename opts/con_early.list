@@ -1,0 +1,2 @@
+dnl OPT_C(all,core/con_early)
+OPT_C(i386,core/i386/vga_early)

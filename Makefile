@@ -2,7 +2,7 @@
 # 'make'        build executable file 'mycc'
 # 'make clean'  removes all .o and executable files
 #
-TARGET=i586-elf
+TARGET=i386-elf
 
 # define the C compiler to use
 
@@ -20,10 +20,14 @@ PROGNAME=vmpxx
 PROGPATH=/boot/vmpxx
 
 # define any compile-time flags
-CFLAGS = -Wall -g
+CFLAGS=-Wall -g -ffreestanding
+
+NASMFLAGS = -felf -g
 
 # define any link-time flags
-LFLAGS = 
+LFLAGS = -ffreestanding -O2 -nostdlib -static-libgcc -g
+
+INCLUDES= -iquoteinclude -iquote$(BUILDDIR) -iquote.
 
 config: $(BUILDDIR)opt_make $(BUILDDIR)_opt_cfg.h
 

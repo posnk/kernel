@@ -1,0 +1,2 @@
+OPT_NASM(i386,platinit/i386/start)
+OPT_C(i386,platinit/i386/init)

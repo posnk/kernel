@@ -1,2 +1,7 @@
 OPT(core)
+OPT(util)
 OPT(crt)
+OPT(mbhdr_txt)
+OPT(mbhdr_gfx)
+OPT(con_early)
+OPT(platinit)
