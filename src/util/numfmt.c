@@ -29,8 +29,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "util/numfmt.h"
 #include <limits.h>
 #include <string.h>
+#include <assert.h>
 
-void numfmt_signed ( int num, int flags, int width, int base, char *str, size_t str_len )
+void numfmt_signed (	int num, 
+			int flags, 
+			int width, 
+			int base, 
+			char *str, 
+			size_t str_len )
 {
 
 	char pad;
@@ -39,8 +45,9 @@ void numfmt_signed ( int num, int flags, int width, int base, char *str, size_t 
 	int  sgn = 0;
 	int  room;
 	
-//	assert( base >= 2 );
-//	assert( base <= 16 );
+	assert( base >= 2 );
+	assert( base <= 16 );
+	assert( width < sizeof buf );
 
 	if ( ( sgn = (num < 0) ) ) 
 		num = -num;
@@ -53,6 +60,50 @@ void numfmt_signed ( int num, int flags, int width, int base, char *str, size_t 
 	if ( sgn )
 		buf[ sizeof buf - pos++ ] = '-';
 	else if ( flags & NF_SGNPLUS )
+		buf[ sizeof buf - pos++ ] = '+';			
+	
+	pos--;
+
+	room = width - pos;
+
+	if ( room > 0 ) {
+		pad = ( flags & NF_ZEROPAD ) ? '0' : ' ';
+		memset( &buf[ sizeof buf - width ], pad, room );
+	} else
+		width = pos;
+
+	if ( width >= str_len - 1 )
+		width = str_len - 2;
+
+	memcpy( str, &buf[ sizeof buf - width ], width );
+
+	str[width] = 0;
+
+}
+	
+void numfmt_unsigned (	unsigned int num,
+			int flags, 
+			int width, 
+			unsigned int base, 
+			char *str, 
+			size_t str_len )
+{
+
+	char pad;
+	char buf[ CHAR_BIT * sizeof(int) + 1];
+	int  pos = 1;
+	int  room;
+	
+	assert( base >= 2 );
+	assert( base <= 16 );
+	assert( width < sizeof buf );
+
+	do {
+		buf[ sizeof buf - pos++ ] = "0123456789ABCDEF"[ num % base ];
+		num /= base;
+	} while ( num != 0 );
+
+	if ( flags & NF_SGNPLUS )
 		buf[ sizeof buf - pos++ ] = '+';			
 	
 	pos--;

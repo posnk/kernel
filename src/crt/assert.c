@@ -17,7 +17,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 \******************************************************************************/
 
 /**
- * @file util/numfmt.h
+ * @file crt/assert.c
  *
  * Part of posnk kernel
  *
@@ -25,32 +25,36 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  */
 
-#ifndef __numfmt__
-#define __numfmt__
 #include "config.h"
-#include <stddef.h>
+#include "util/numfmt.h"
+#include "core/con_early.h"
+#include <assert.h>
 
-/**
- * Pad the leading space on the number with zeroes
- */
-#define NF_ZEROPAD	(1 << 0)
-
-/**
- * Show a + in front of positive numbers
- */
-#define NF_SGNPLUS	(1 << 1)
-
-void numfmt_signed(	int num, 
-			int flags, 
-			int width, 
-			int base, 
-			char *str, 
-			size_t str_len);
-void numfmt_unsigned(	unsigned int num, 
-			int flags, 
-			int width, 
-			unsigned int base, 
-			char *str, 
-			size_t str_len);
-
-#endif
+void assert_fail(	const char *cond, 
+			const char *file, 
+			int line, 
+			const char *func )
+{
+	#ifdef OPT_util
+		char buffer[8];
+	#endif
+	#ifdef OPT_con_early
+		con_early_putstr("Assertion failed: ");
+		con_early_putstr(cond);
+		con_early_putstr(" in ");
+		con_early_putstr(file);
+		#ifdef OPT_util
+			con_early_putch(':');
+			numfmt_signed(line, 0, 7, 10, buffer, 8);
+			con_early_putstr(buffer);
+		#endif
+		con_early_putch(' ');
+		con_early_putstr(func);
+		con_early_putstr("()\n");
+	#endif
+	#ifdef OPT_panic
+		panic();
+	#else
+		for (;;);
+	#endif
+}

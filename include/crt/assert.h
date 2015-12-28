@@ -17,7 +17,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 \******************************************************************************/
 
 /**
- * @file util/numfmt.h
+ * @file path/file.h
  *
  * Part of posnk kernel
  *
@@ -25,32 +25,30 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  */
 
-#ifndef __numfmt__
-#define __numfmt__
+#ifndef __assert__
+#define __assert__
 #include "config.h"
-#include <stddef.h>
 
 /**
- * Pad the leading space on the number with zeroes
+ * Implements the handler and information output routine for assert failures
+ * @param cond	The condition that was asserted
+ * @param file	The source unit containing the failing assert
+ * @param line	The line in that file containing the failing assert
+ * @param func	The function containing the failing assert
  */
-#define NF_ZEROPAD	(1 << 0)
+void	assert_fail( 	const char *cond, 
+			const char *file, 
+			int line, 
+			const char *func);
 
 /**
- * Show a + in front of positive numbers
+ * Asserts a condition, if the condition is false an exception handler will be
+ * invoked.
+ * @param CoNd	The asserted condition
  */
-#define NF_SGNPLUS	(1 << 1)
-
-void numfmt_signed(	int num, 
-			int flags, 
-			int width, 
-			int base, 
-			char *str, 
-			size_t str_len);
-void numfmt_unsigned(	unsigned int num, 
-			int flags, 
-			int width, 
-			unsigned int base, 
-			char *str, 
-			size_t str_len);
+#define assert(CoNd)	do {\
+	if ( ! (CoNd) )  \
+		assert_fail( #CoNd, __FILE__, __LINE__, __FUNCTION__ ); \
+} while ( 0 );
 
 #endif

@@ -44,7 +44,7 @@ void i386_init( void *mb_info, uint32_t mb_magic )
 	numfmt_signed( 42, 0, 0, 10, buffer, 100 );
 	con_early_putstr(buffer);
 	con_early_putch('\n');
-	numfmt_signed( 31337, 0, 0, 10, buffer, 100 );
+	numfmt_signed( 31337, 0, 0, 32, buffer, 100 );
 	con_early_putstr(buffer);
 	con_early_putch('\n');
 	numfmt_signed( -123, 0, 5, 10, buffer, 100 );
