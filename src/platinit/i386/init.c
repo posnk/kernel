@@ -28,7 +28,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "config.h"
 #include <stdint.h>
 #include "core/con_early.h"
-#include "util/numfmt.h"
+#include <numfmt.h>
+#include <stdio.h>
 
 /**
  * C entry point, called from start.s
@@ -41,6 +42,8 @@ void i386_init( void *mb_info, uint32_t mb_magic )
 	con_early_putstr(ARCH_STRING);
 	con_early_putstr(" by Peter Bosch (c) 2016\n");
 	
+	printf("Hello, %s world!: %i, %p %x\n", "printf", 42, mb_info, mb_magic);
+
 	numfmt_signed( 42, 0, 0, 10, buffer, 100 );
 	con_early_putstr(buffer);
 	con_early_putch('\n');

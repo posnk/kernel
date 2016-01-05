@@ -17,7 +17,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 \******************************************************************************/
 
 /**
- * @file util/numfmt.c
+ * @file crt/numfmt.c
  *
  * Part of posnk kernel
  *
@@ -26,12 +26,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #include "config.h"
-#include "util/numfmt.h"
+#include <numfmt.h>
 #include <limits.h>
 #include <string.h>
 #include <assert.h>
 
-void numfmt_signed (	int num, 
+void numfmt_signed (	intmax_t num, 
 			int flags, 
 			int width, 
 			int base, 
@@ -40,7 +40,7 @@ void numfmt_signed (	int num,
 {
 
 	char pad;
-	char buf[ CHAR_BIT * sizeof(int) + 1];
+	char buf[ CHAR_BIT * sizeof(intmax_t) + 1];
 	int  pos = 1;
 	int  sgn = 0;
 	int  room;
@@ -54,7 +54,7 @@ void numfmt_signed (	int num,
 
 	do {
 		buf[ sizeof buf - pos++ ] = "0123456789ABCDEF"[ num % base ];
-		num /= base;
+		num /= (intmax_t) base;
 	} while ( num != 0 );
 
 	if ( sgn )
@@ -81,7 +81,7 @@ void numfmt_signed (	int num,
 
 }
 	
-void numfmt_unsigned (	unsigned int num,
+void numfmt_unsigned (	uintmax_t num,
 			int flags, 
 			int width, 
 			unsigned int base, 
@@ -100,7 +100,7 @@ void numfmt_unsigned (	unsigned int num,
 
 	do {
 		buf[ sizeof buf - pos++ ] = "0123456789ABCDEF"[ num % base ];
-		num /= base;
+		num /= (uintmax_t) base;
 	} while ( num != 0 );
 
 	if ( flags & NF_SGNPLUS )

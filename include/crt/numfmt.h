@@ -17,7 +17,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 \******************************************************************************/
 
 /**
- * @file util/numfmt.h
+ * @file crt/numfmt.h
  *
  * Part of posnk kernel
  *
@@ -29,6 +29,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define __numfmt__
 #include "config.h"
 #include <stddef.h>
+#include <stdint.h>
 
 /**
  * Pad the leading space on the number with zeroes
@@ -40,13 +41,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 #define NF_SGNPLUS	(1 << 1)
 
-void numfmt_signed(	int num, 
+void numfmt_signed(	intmax_t num, 
 			int flags, 
 			int width, 
 			int base, 
 			char *str, 
 			size_t str_len);
-void numfmt_unsigned(	unsigned int num, 
+void numfmt_unsigned(	uintmax_t num, 
 			int flags, 
 			int width, 
 			unsigned int base, 

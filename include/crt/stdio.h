@@ -17,40 +17,28 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 \******************************************************************************/
 
 /**
- * @file crt/assert.c
+ * @file include/crt/stdio.h
  *
  * Part of posnk kernel
  *
  * Written by Peter Bosch <peterbosc@gmail.com>
  *
  */
+#ifndef __stdio__
 
 #include "config.h"
-#include <numfmt.h>
-#include "core/con_early.h"
-#include <assert.h>
+#include <stdarg.h>
 
-void assert_fail(	const char *cond, 
-			const char *file, 
-			int line, 
-			const char *func )
-{
-	char buffer[8];
-	#ifdef OPT_con_early
-		con_early_putstr("Assertion failed: ");
-		con_early_putstr(cond);
-		con_early_putstr(" in ");
-		con_early_putstr(file);
-		con_early_putch(':');
-		numfmt_signed(line, 0, 7, 10, buffer, 8);
-		con_early_putstr(buffer);
-		con_early_putch(' ');
-		con_early_putstr(func);
-		con_early_putstr("()\n");
-	#endif
-	#ifdef OPT_panic
-		panic();
-	#else
-		for (;;);
-	#endif
-}
+int vsnprintf(	char *str, size_t size, const char *format, va_list list );
+
+int vsprintf(	char *str, const char *format, va_list list );
+
+int vprintf(		   const char *format, va_list list );
+
+int sprintf(	char *str, const char *format, ... );
+
+int snprintf(	char *str, size_t size, const char *format, ... );
+
+int printf(		   const char *format, ... );
+
+#endif

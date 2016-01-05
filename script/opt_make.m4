@@ -19,20 +19,21 @@ define(`OPT_REG', `dnl')dnl
 define(`OPT_INCL', `INCLS_`'OPTNAME`'_$1 += -Iinclude/$2 ')dnl
 include(`opts/opts.list')dnl
 
-define(`LINKOPT', `INCLS_$1+=$(INCLS_$2)')dnl
+define(`LINKOPT', `INCLS_$1+=$(INCLS_$2_all)
+INCLS_$1+=$(INCLS_$2_`'ARCHNAME)')dnl
 include(`config/opts.list')dnl
 
 define(`OPT', `include(opts/$1.list)dnl')dnl
 define(`OPT_INCL', `dnl')dnl
-define(`OPT_C', `$(BUILDDIR)TARGETNAME/$2.o: src/$2.c TARGETNAME`'_tree
-	$(CC) $(CFLAGS) -DTARGET_`'TARGETNAME $(INCLS_`'TARGETNAME) $(INCLUDES) -c src/$2.c -o $(BUILDDIR)TARGETNAME/$2.o
-	$(CDEP) $(CFLAGS) $(INCLS_`'TARGETNAME) $(INCLUDES) -M src/$2.c -o $(BUILDDIR)TARGETNAME/$2.d
+define(`OPT_C', `$(BUILDDIR)TARGETNAME/$2.o: src/$2.c
+	$(CC) $(CFLAGS) -DTARGET_`'TARGETNAME $(INCLUDES) $(INCLS_`'TARGETNAME) -c src/$2.c -o $(BUILDDIR)TARGETNAME/$2.o
+	$(CDEP) $(CFLAGS) $(INCLUDES) $(INCLS_`'TARGETNAME) -M src/$2.c -o $(BUILDDIR)TARGETNAME/$2.d
 ')dnl
-define(`OPT_NASM', `$(BUILDDIR)TARGETNAME/$2.o: src/$2.s TARGETNAME`'_tree
-	$(NASM) $(NASMFLAGS) src/$1.s -o $(BUILDDIR)TARGETNAME/$2.o
+define(`OPT_NASM', `$(BUILDDIR)TARGETNAME/$2.o: src/$2.s
+	$(NASM) $(NASMFLAGS) src/$2.s -o $(BUILDDIR)TARGETNAME/$2.o
 ')dnl
-define(`OPT_GAS', `$(BUILDDIR)TARGETNAME/$2.o: src/$2.S TARGETNAME`'_tree
-	$(GAS) $(GASFLAGS) -DTARGET_`'TARGETNAME $(INCLS_`'TARGETNAME) $(INCLUDES) -c src/$2.S -o $(BUILDDIR)TARGETNAME/$2.o
+define(`OPT_GAS', `$(BUILDDIR)TARGETNAME/$2.o: src/$2.S
+	$(GAS) $(GASFLAGS) -DTARGET_`'TARGETNAME $(INCLUDES) $(INCLS_`'TARGETNAME) -c src/$2.S -o $(BUILDDIR)TARGETNAME/$2.o
 ')dnl
 define(`TARGET', `define(`TARGETNAME', `$1')dnl
 include(`opts/opts.list')')dnl
@@ -55,7 +56,7 @@ define(`TARGET', `$1_`'OPTNAME dnl')dnl
 define(`OPT', `$1:define(`OPTNAME', `$1')include(opts/targets.list)')dnl
 include(`opts/opts.list')dnl
 
-define(`TARGET', `$1: $(OBJS_$1) $1_tree
+define(`TARGET', `$1: $(OBJS_$1) $1_tree ld/$1_`'ARCHNAME`'.ld
 	$(LD) -T ld/$1_`'ARCHNAME`'.ld $(LFLAGS) $(LIBS) -o $(BUILDDIR)$2 $(OBJS_$1) -lgcc')dnl
 include(`opts/targets.list')
 dnl
