@@ -51,8 +51,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define PF_PTRDIFF	(6)
 #define PF_INTMAX	(7)
 
-
-
+/**
+ * @brief Formatted print function
+ * @param putch		The function used to store/output the formatted output
+ * @param arg		A pointer that will be passed to the putch parameter
+ * @param format	The format string
+ * @param list		The varargs list
+ */
 int vpprintf(	void (*putch)( void *arg, char c, int count ),  
 		void *arg,
 		const char *format, 
@@ -67,6 +72,7 @@ int vpprintf(	void (*putch)( void *arg, char c, int count ),
 	int width;
 	int size;
 	int base;
+	int presc;
 	int count = 0;
 	intmax_t sival;
 	uintmax_t uival;
@@ -148,38 +154,43 @@ int vpprintf(	void (*putch)( void *arg, char c, int count ),
 				state = PF_TYPE;
 				if ( fch == 'i' || fch == 'd' ) {
 					switch ( size ) {
-						case PF_CHAR:
-							sival = ( signed char ) 
-								va_arg(list, int);
-							break;	
-						case PF_SHORT:
-							sival = ( signed short ) 
-								va_arg(list, int);
-							break;	
-						case PF_DEFT:
-							sival = va_arg( list, int );
-							reak;
-						case PF_LONG:
-							sival = va_arg( list, signed long );
-							break;	
-						case PF_LONGLONG:
-							sival = va_arg(	list, 
-									signed long long );
-							break;	
-						case PF_INTMAX:
-							sival = va_arg( list, intmax_t );
-							break;
-						case PF_SIZE:
-							sival = va_arg( list, 
-									size_t );
-							break;
-						case PF_PTRDIFF:
-							sival = va_arg( list,
-									ptrdiff_t );
-							break;
-						default:
-							assert( !"bad size specifier "
-								 "in printf" );
+					case PF_CHAR:
+						sival = ( signed char )
+							va_arg(	list, 
+								int);
+						break;	
+					case PF_SHORT:
+						sival = ( signed short )
+							va_arg(	list, 
+								int);
+						break;	
+					case PF_DEFT:
+						sival = va_arg(	list, 
+							int );
+						break;
+					case PF_LONG:
+						sival = va_arg( list, 
+							signed long );
+						break;	
+					case PF_LONGLONG:
+						sival = va_arg(	list, 
+							signed long long );
+						break;	
+					case PF_INTMAX:
+						sival = va_arg( list, 
+								intmax_t );
+						break;
+					case PF_SIZE:
+						sival = va_arg( list, 
+								size_t );
+						break;
+					case PF_PTRDIFF:
+						sival = va_arg( list,
+								ptrdiff_t );
+						break;
+					default:
+						assert( !"bad size specifier "
+							 "in printf" );
 					}
 					numfmt_signed(
 						sival,
@@ -198,40 +209,42 @@ int vpprintf(	void (*putch)( void *arg, char c, int count ),
 						uival = (uintmax_t) (uintptr_t)
 							va_arg( list, void * );
 					} else switch ( size ) {
-						case PF_CHAR:
-							uival = ( unsigned char ) 
-								va_arg(list, int);
+					case PF_CHAR:
+						uival = ( unsigned char ) 
+							va_arg(list, int);
 							break;	
-						case PF_SHORT:
-							uival = ( unsigned short ) 
-								va_arg(list, int);
-							break;	
-						case PF_DEFT:
-							uival = va_arg( list, 
-									unsigned int );
-							break;
-						case PF_LONG:
-							uival = va_arg( list, 
-									unsigned long );
-							break;	
-						case PF_LONGLONG:
-							sival = va_arg(	list, 
-									unsigned long long );
-							break;	
-						case PF_INTMAX:
-							uival = va_arg( list, uintmax_t );
-							break;
-						case PF_SIZE:
-							uival = va_arg( list, 
-									size_t );
-							break;
-						case PF_PTRDIFF:
-							uival = (uintmax_t) va_arg( list,
-									ptrdiff_t );
-							break;
-						default:
-							assert( !"bad size specifier "
-								 "in printf" );
+					case PF_SHORT:
+						uival = ( unsigned short ) 
+							va_arg(list, int);
+						break;	
+					case PF_DEFT:
+						uival = va_arg( list, 
+							unsigned int );
+						break;
+					case PF_LONG:
+						uival = va_arg( list, 
+							unsigned long );
+						break;	
+					case PF_LONGLONG:
+						sival = va_arg(	list, 
+							unsigned long long );
+						break;	
+					case PF_INTMAX:
+						uival = va_arg( list, 
+							uintmax_t );
+						break;
+					case PF_SIZE:
+						uival = va_arg( list, 
+							size_t );
+						break;
+					case PF_PTRDIFF:
+						uival = (uintmax_t) 
+							va_arg( list,
+								ptrdiff_t );
+						break;
+					default:
+						assert( !"bad size specifier "
+							 "in printf" );
 					}
 					switch ( fch ) {
 						case 'x'://TODO:lcase hex
@@ -281,8 +294,17 @@ int vpprintf(	void (*putch)( void *arg, char c, int count ),
 				}
 				state = PF_PRINT;
 				break;
+			case PF_PRESC:
+				if ( fch >= '0' && fch <= '9' ) {
+					presc = presc * 10 + fch - '0';
+					break;
+				} else if ( fch == '*') {
+					presc = va_arg( list, int );
+					state = PF_LMOD;
+					break;
+				}
 			default:
-				assert(!"INVALID PF STATE");				
+				assert(!"INVALID PF STATE");			
 				break;
 		}
 	}
@@ -306,6 +328,14 @@ void __snprintf_putch( void * arg, char c, int count )
 
 }
 
+/**
+ * @brief Varargs version of snprintf
+ * @param str		Output string
+ * @param size		Size limit for the string
+ * @param format	Format string
+ * @param list		Varargs list
+ * @see vpprintf
+ */
 int vsnprintf(	char *str, size_t size, const char *format, va_list list )
 {
 	__snprintf_str arg;
@@ -326,12 +356,27 @@ int vsnprintf(	char *str, size_t size, const char *format, va_list list )
 
 }
 
+/**
+ * @brief Varargs version of sprintf
+ * @param str		Output string
+ * @param format	Format string
+ * @param list		Varargs list
+ * @deprecated *Very* unsafe function
+ * @see vpprintf
+ */
 int vsprintf( char *str, const char *format, va_list list )
 {
 	assert(!"Attempting to use unsafe interface!");
 	return 0;
 }
 
+/**
+ * @brief printf to string
+ * @param str		Output string
+ * @param format	Format string
+ * @param ...		Varargs for values
+ * @deprecated *Very* unsafe function
+ */
 int sprintf( char *str, const char *format, ... )
 {
 	int result;
@@ -347,6 +392,14 @@ int sprintf( char *str, const char *format, ... )
 
 }
 
+/**
+ * @brief printf to size limited string
+ * @param str		Output string
+ * @param size		Size limit for the string
+ * @param format	Format string
+ * @param ...		Varargs for values
+ * @see vpprintf
+ */
 int snprintf( char *str, size_t size, const char *format, ... )
 {
 	int result;
@@ -368,6 +421,13 @@ void __printf_putch( void * arg, char c, int count )
 
 }
 
+/**
+ * Varargs version of printf
+ * @param format	Format string
+ * @param list		Varargs list
+ * @see vpprintf
+ * @see printf
+ */
 int vprintf( const char *format, va_list list )
 {
 
@@ -375,6 +435,12 @@ int vprintf( const char *format, va_list list )
 
 }
 
+/**
+ * Formatted print to kernel console
+ * @param format	Format string
+ * @param ...		Varargs for values
+ * @see vpprintf
+ */
 int printf( const char *format, ... )
 {
 
