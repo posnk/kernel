@@ -25,14 +25,14 @@ include(`config/opts.list')dnl
 
 define(`OPT', `include(opts/$1.list)dnl')dnl
 define(`OPT_INCL', `dnl')dnl
-define(`OPT_C', `$(BUILDDIR)TARGETNAME/$2.o: src/$2.c
+define(`OPT_C', `$(BUILDDIR)TARGETNAME/$2.o: src/$2.c $(BUILDDIR)_opt_cfg.h
 	$(CC) $(CFLAGS) -DTARGET_`'TARGETNAME $(INCLUDES) $(INCLS_`'TARGETNAME) -c src/$2.c -o $(BUILDDIR)TARGETNAME/$2.o
 	$(CDEP) $(CFLAGS) $(INCLUDES) $(INCLS_`'TARGETNAME) -M src/$2.c -o $(BUILDDIR)TARGETNAME/$2.d
 ')dnl
 define(`OPT_NASM', `$(BUILDDIR)TARGETNAME/$2.o: src/$2.s
 	$(NASM) $(NASMFLAGS) src/$2.s -o $(BUILDDIR)TARGETNAME/$2.o
 ')dnl
-define(`OPT_GAS', `$(BUILDDIR)TARGETNAME/$2.o: src/$2.S
+define(`OPT_GAS', `$(BUILDDIR)TARGETNAME/$2.o: src/$2.S $(BUILDDIR)_opt_cfg.h
 	$(GAS) $(GASFLAGS) -DTARGET_`'TARGETNAME $(INCLUDES) $(INCLS_`'TARGETNAME) -c src/$2.S -o $(BUILDDIR)TARGETNAME/$2.o
 ')dnl
 define(`TARGET', `define(`TARGETNAME', `$1')dnl
