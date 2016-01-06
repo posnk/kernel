@@ -1,0 +1,4 @@
+OPT_NASM(i386,archlib/i386/portio)
+OPT_NASM(i386,archlib/i386/ctrlregs)
+OPT_NASM(i386,archlib/i386/tlb)
+OPT_NASM(i386,archlib/i386/ints)
