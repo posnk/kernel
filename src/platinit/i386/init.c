@@ -42,7 +42,7 @@ void i386_init( void *mb_info, uint32_t mb_magic )
 	con_early_putstr(ARCH_STRING);
 	con_early_putstr(" by Peter Bosch (c) 2016\n");
 	
-	printf("Hello, %s world!: %i, %p %x\n", "printf", 42, mb_info, mb_magic);
+	printf("Hello, %s world!: %i, %08p %x\n", "printf", 42, mb_info, mb_magic);
 
 	numfmt_signed( 42, 0, 0, 10, buffer, 100 );
 	con_early_putstr(buffer);

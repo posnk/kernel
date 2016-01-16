@@ -1,0 +1,2 @@
+OPT_C(i386,core/i386/paging)
+
