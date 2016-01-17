@@ -27,46 +27,116 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "config.h"
 #include <stdint.h>
-#include "core/con_early.h"
-#include <numfmt.h>
+#include <string.h>
 #include <stdio.h>
+#include "core/physmm.h"
+#include "arch/i386/multiboot.h"
+
+extern void *i386_end_kernel;
+extern void *i386_start_kernel;
+
+char *mb_mmap_types[6] = {
+	"TYPE0",
+	"RAM",
+	"RESERVED",
+	"ACPI_RECLAIM",
+	"ACPI_NVS",
+	"BADRAM"
+};
 
 /**
  * C entry point, called from start.s
  */
-void i386_init( void *mb_info, uint32_t mb_magic )
+void i386_init( multiboot_info_t *mb_info, uint32_t mb_magic )
 {
-	char buffer[100];
+	char *str;
+	int idx;
+	int mmap_s = 0;
+	uint32_t sz;
+	physaddr_t start, end;
+	multiboot_memory_map_t 	*mmap;
+	multiboot_module_t	*mods;
 
-	con_early_putstr("posldr ");
-	con_early_putstr(ARCH_STRING);
-	con_early_putstr(" by Peter Bosch (c) 2016\n");
+	printf("posldr %s by Peter Bosch (c) 2016\n", ARCH_STRING);
 	
-	printf("Hello, %s world!: %i, %08p %x\n", "printf", 42, mb_info, mb_magic);
-
-	numfmt_signed( 42, 0, 0, 10, buffer, 100 );
-	con_early_putstr(buffer);
-	con_early_putch('\n');
-	numfmt_signed( 31337, 0, 0, 32, buffer, 100 );
-	con_early_putstr(buffer);
-	con_early_putch('\n');
-	numfmt_signed( -123, 0, 5, 10, buffer, 100 );
-	con_early_putstr(buffer);
-	con_early_putch('\n');
-	numfmt_signed( 123, 0, 5, 10, buffer, 100 );
-	con_early_putstr(buffer);
-	con_early_putch('\n');
-	numfmt_signed( 123, NF_ZEROPAD | NF_SGNPLUS, 5, 10, buffer, 100 );
-	con_early_putstr(buffer);
-	con_early_putch('\n');
-	numfmt_signed( 0x55AA, NF_ZEROPAD, 8, 16, buffer, 100 );
-	con_early_putstr(buffer);
-	con_early_putch('\n');
-	numfmt_signed( 0x55AA, NF_ZEROPAD, 32, 2, buffer, 100 );
-	con_early_putstr(buffer);
-	con_early_putch('\n');
+	printf("Multiboot magic number: 0x%08x\n", mb_magic );
+	printf("mb_info[0x%08p]\n", mb_info);
+	printf("|-flags:         0x%08x\n", mb_info->flags);
+	printf("|-mem_lower:     0x%08x\n", mb_info->mem_lower);
+	printf("|-mem_upper:     0x%08x\n", mb_info->mem_upper);
+	printf("|-boot_device:   0x%08x\n", mb_info->boot_device);
+	printf("|-cmdline:       0x%08x\n", mb_info->cmdline);
+	printf("|-mods_count:    0x%08x\n", mb_info->mods_count);
+	printf("|-mods_addr:     0x%08x\n", mb_info->mods_addr);
+	printf("|-mmap_length:   0x%08x\n", mb_info->mmap_length);
+	printf("|-mmap_addr:     0x%08x\n", mb_info->mmap_addr);
+	printf("|-drives_length: 0x%08x\n", mb_info->drives_length);
+	printf("|-drives_addr:   0x%08x\n", mb_info->drives_addr);
+	printf("|-config_table:  0x%08x\n", mb_info->config_table);
+	printf("|-bootldr_name:  0x%08x\n", mb_info->boot_loader_name);
+	printf("|-apm_table:     0x%08x\n", mb_info->apm_table);
+	printf("|-vbe_ctrl_info: 0x%08x\n", mb_info->vbe_control_info);
+	printf("|-vbe_mode_info: 0x%08x\n", mb_info->vbe_mode_info);
+	printf("|-vbe_mode:      0x%08x\n", mb_info->vbe_mode);
+	printf("|-vbe_if_seg:    0x%08x\n", mb_info->vbe_interface_seg);
+	printf("|-vbe_if_off:    0x%08x\n", mb_info->vbe_interface_off);
+	printf("\\-vbe_if_len:    0x%08x\n", mb_info->vbe_interface_len);
 	
+	mmap = ( multiboot_memory_map_t *) mb_info->mmap_addr;
+	mods = ( multiboot_module_t *) mb_info->mods_addr;
 
+	printf("physmm: initializing...\n");
+	physmm_init();
+
+	printf("bootstrap: multiboot memory map:\n");
+	
+	do {
+		
+		printf(	"    base:0x%08x%08x len :0x%08x%08x type:  %s\n", 
+			mmap->base_addr_high, mmap->base_addr_low,
+			mmap->length_high, mmap->length_low, 
+			mb_mmap_types[mmap->type]);
+
+		if ( mmap->type == 1 && mmap->base_addr_high == 0 ) {
+			if ( mmap->length_high == 0)
+				sz = mmap->length_low;
+			else
+				sz = 0xFFFFFFFF - mmap->base_addr_low;
+			start = (mmap->base_addr_low + 0xFFF) & ~0xFFF;
+			end = (mmap->base_addr_low + sz) & ~0xFFF;
+			if ( start != end )
+				physmm_free_range( start, end );
+		}
+
+		mmap_s += mmap->size + sizeof( unsigned long );
+		mmap = ( multiboot_memory_map_t * )
+				( mb_info->mmap_addr + mmap_s);
+
+	} while ( mmap_s < mb_info->mmap_length );
+
+	printf("bootstrap: registered %u MB of RAM\n", 
+		physmm_count_free() / (1024*1024));
+	
+	printf("bootstrap: loaded between 0x%08p and 0x%08p\n", 
+		&i386_start_kernel,
+		&i386_end_kernel);
+
+	physmm_claim_range( ( physaddr_t ) &i386_start_kernel, 
+			    ( physaddr_t ) &i386_end_kernel );
+
+	printf("bootstrap: multiboot modules:\n");
+	for ( idx = 0; idx < mb_info->mods_count; idx++ ) {
+		if ( mods[idx].string == 0 )
+			str = "<NULL>";
+		else
+			str = (char *) mods[idx].string;
+		printf("    start: 0x%08x end: 0x%08x str: %s\n",
+			mods[idx].mod_start, mods[idx].mod_end, str );
+		physmm_claim_range( mods[idx].mod_start, mods[idx].mod_end );
+	}
+
+	printf("bootstrap: %u MB of RAM available\n", 
+		physmm_count_free() / (1024*1024));
 
 	for ( ;; ) ;
 

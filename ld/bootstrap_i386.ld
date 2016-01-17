@@ -15,6 +15,7 @@ SECTIONS
 	   Next we'll put the .text section. */
 	.setup BLOCK(4K) : ALIGN(4K)
 	{
+		i386_start_kernel = .;
 		*(.multiboot)
 		*(.setup)
 	}
@@ -26,6 +27,7 @@ SECTIONS
 		*(COMMON)
 		*(.bss)
 		*(.bootstrap_stack)
+		i386_end_kernel = .;
 		i386_start_kheap = .;
 	}
 	
