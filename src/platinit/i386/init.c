@@ -133,11 +133,26 @@ void i386_init( multiboot_info_t *mb_info, uint32_t mb_magic )
 		printf("    start: 0x%08x end: 0x%08x str: %s\n",
 			mods[idx].mod_start, mods[idx].mod_end, str );
 		physmm_claim_range( mods[idx].mod_start, mods[idx].mod_end );
+		elfmem_load_segments((void*)
+				mods[idx].mod_start, 
+				mods[idx].mod_end - mods[idx].mod_start);
 	}
 
 	printf("bootstrap: %u MB of RAM available\n", 
 		physmm_count_free() / (1024*1024));
-
+	
+	for ( idx = 0; idx < mb_info->mods_count; idx++ ) {
+		if ( mods[idx].string == 0 )
+			str = "<NULL>";
+		else
+			str = (char *) mods[idx].string;
+		printf("    start: 0x%08x end: 0x%08x str: %s\n",
+			mods[idx].mod_start, mods[idx].mod_end, str );
+		physmm_claim_range( mods[idx].mod_start, mods[idx].mod_end );
+		elfmem_load_segments((void*)
+				mods[idx].mod_start, 
+				mods[idx].mod_end - mods[idx].mod_start);
+	}
 	for ( ;; ) ;
 
 }

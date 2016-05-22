@@ -28,6 +28,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #ifndef __binfmt_elf_h__
 #define __binfmt_elf_h__
 
+#include <string.h>
+
 #define EI_NIDENT 16
 
 #define ET_NONE		0	/** No file type */
@@ -236,6 +238,8 @@ typedef struct {
 	Elf32_Sword	r_addend;	/* Constant addend to use */
 } Elf32_Rela;
 
+int	elf_verify_ident( Elf32_Ehdr * hdr );
+int	elfmem_load_segments(void *start, size_t size);
 
 #endif
 
