@@ -28,6 +28,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "config.h"
 #include "binfmt/elf.h"
 #include <string.h>
+#include <assert.h>
 
 int elf_verify_ident( Elf32_Ehdr * Header )
 {
@@ -46,3 +47,79 @@ int elf_verify_ident( Elf32_Ehdr * Header )
 		return 1;
 
 }
+
+Elf32_Word	elf_hash_func( const char *name )
+{
+
+	Elf32_Word	h = 0, g;
+
+	while ( *name ) {
+
+		h = ( h << 4 ) + (unsigned char ) *name++;
+
+		if ( g = h & 0xF0000000 )
+			h ^= g >> 24;
+
+		h &= ~g;
+
+	}
+
+	return h;
+
+}
+
+Elf32_Word	elf_hash_size( Elf32_Word *hashtab )
+{
+	return hashtab[1];
+}
+
+Elf32_Word	elf_hash_find( Elf32_Word *hashtab, Elf32_Word hash )
+{
+	Elf32_Word nbucket;
+	nbucket= hashtab[0];
+	return hashtab[ 2 + ( hash % nbucket ) ];
+}
+
+Elf32_Word	elf_hash_next( Elf32_Word *hashtab, Elf32_Word symb )
+{
+
+
+	Elf32_Word nchain, nbucket;
+	nbucket= hashtab[0];
+	nchain = hashtab[1];
+	assert( symb != STN_UNDEF );
+	assert( symb < nchain );
+	return hashtab[ 2 + nbucket + symb ];
+}
+
+Elf32_Word	elf_findsym(	Elf32_Word *hashtab, 
+				Elf32_Sym *symtab,
+				const char *strtab,
+				const char *name )
+{
+
+	Elf32_Word cur;
+	Elf32_Word hash;
+
+	hash = elf_hash_func( name );
+	
+	cur = elf_hash_find( hashtab, hash );
+
+	while ( cur != STN_UNDEF ) {
+	
+		if ( symtab[ cur ].st_name != 0 )
+			printf("SYMBOL %i %s cmp %s\n", cur,
+				&strtab[symtab[ cur ].st_name],name);
+	
+		if (	symtab[ cur ].st_name != 0 && 
+			!strcmp( name, &strtab[ symtab[ cur ].st_name ] ) )
+			return cur;
+	
+		cur = elf_hash_next( hashtab, cur );
+
+	}
+
+	return STN_UNDEF;
+
+}
+

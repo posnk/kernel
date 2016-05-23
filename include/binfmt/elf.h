@@ -135,6 +135,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define STT_LOPROC	13		/* Start of arch specific */
 #define STT_HIPROC	15		/* End of arch specific */
 
+/* symbol indices */
+#define STN_UNDEF	0		/* Undefined */
+
 /* d_tag */
 #define DT_NULL		0
 #define DT_NEEDED	1
@@ -272,8 +275,24 @@ typedef struct {
 	} d_un;
 } Elf32_Dyn;
 
-int	elf_verify_ident( Elf32_Ehdr * hdr );
-int	elfmem_load_segments(void *start, size_t size);
+int		elf_verify_ident( Elf32_Ehdr * hdr );
+int		elfmem_load_segments(void *start, size_t size);
+
+/**
+ * @brief	Calculates the ELF symbol hash for a given string
+ * @param	name The string to hash
+ * @return 	The hash
+ */
+Elf32_Word	elf_hash_func( const char *name );
+
+Elf32_Word	elf_hash_find( Elf32_Word *hashtab, Elf32_Word hash );
+Elf32_Word	elf_hash_next( Elf32_Word *hashtab, Elf32_Word symb );
+Elf32_Word	elf_hash_size( Elf32_Word *hashtab );
+Elf32_Word      elf_findsym(		Elf32_Word *hashtab,
+					Elf32_Sym *symtab,
+					const char *strtab,
+					const char *name );
+
 
 #endif
 
