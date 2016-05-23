@@ -135,6 +135,32 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define STT_LOPROC	13		/* Start of arch specific */
 #define STT_HIPROC	15		/* End of arch specific */
 
+/* d_tag */
+#define DT_NULL		0
+#define DT_NEEDED	1
+#define DT_PLTRELSZ	2
+#define DT_PLTGOT	3
+#define DT_HASH		4
+#define DT_STRTAB	5
+#define DT_SYMTAB	6
+#define DT_RELA		7
+#define DT_RELASZ	8
+#define DT_RELAENT	9
+#define	DT_STRSZ	10
+#define DT_SYMENT	11
+#define DT_INIT		12
+#define DT_FINI		13
+#define DT_SONAME	14
+#define DT_RPATH	15
+#define DT_SYMBOLIC	16
+#define DT_REL		17
+#define DT_RELSZ	18
+#define DT_RELENT	19
+#define DT_PLTREL	20
+#define DT_DEBUG	21
+#define DT_TEXTREL	22
+#define DT_JMPREL	23
+
 /* r_info */
 #define ELF32_R_SYM(i)		((i)>>8)
 #define ELF32_R_TYPE(i)		((unsigned char)(i))
@@ -208,14 +234,14 @@ typedef struct {
 } Elf32_Shdr;
 
 typedef struct {
-	Elf32_Word	p_type;
-	Elf32_Off	p_offset;
-	Elf32_Addr	p_vaddr;
-	Elf32_Addr	p_paddr;
-	Elf32_Word	p_filesz;
-	Elf32_Word	p_memsz;
-	Elf32_Word	p_flags;
-	Elf32_Word	p_align;
+	Elf32_Word	p_type;		/* Type of this program header */
+	Elf32_Off	p_offset;	/* File offset of this segment */
+	Elf32_Addr	p_vaddr;	/* Virtual base addr of segment */
+	Elf32_Addr	p_paddr;	/* Physical base addr of segment */
+	Elf32_Word	p_filesz;	/* File data size of segment */
+	Elf32_Word	p_memsz;	/* Memory size of segment */
+	Elf32_Word	p_flags;	/* Flags for this segment */
+	Elf32_Word	p_align;	/* Alignment of this segment */
 } Elf32_Phdr;
 
 typedef struct {
@@ -237,6 +263,14 @@ typedef struct {
 	Elf32_Word	r_info;		/* Extra information */
 	Elf32_Sword	r_addend;	/* Constant addend to use */
 } Elf32_Rela;
+
+typedef struct {
+	Elf32_Sword	d_tag;		/* Entry type */
+	union {
+		Elf32_Word	d_val;	/* Non-address value */
+		Elf32_Addr	d_ptr;	/* Address value */
+	} d_un;
+} Elf32_Dyn;
 
 int	elf_verify_ident( Elf32_Ehdr * hdr );
 int	elfmem_load_segments(void *start, size_t size);
