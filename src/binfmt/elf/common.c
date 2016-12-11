@@ -30,6 +30,15 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <string.h>
 #include <assert.h>
 
+/**
+ * Verifies the ELF ident entry from the Header
+ * This makes sure the ELF file has:
+ *   * The correct magic
+ *   * The 32-bit ELF class
+ *   * The ELFDATA2LSB encoding
+ *   * The correct version.
+ * @return Whether the header was correct ( 0 = false )
+ */
 int elf_verify_ident( Elf32_Ehdr * Header )
 {
 	if ( 0 != memcmp( Header->e_ident, ELFMAG, SELFMAG) )
@@ -48,10 +57,17 @@ int elf_verify_ident( Elf32_Ehdr * Header )
 
 }
 
+/**
+ * The hash function for ELF hash tables
+ * @param name The string to hash
+ * @return The hash for the string
+ */
 Elf32_Word	elf_hash_func( const char *name )
 {
 
 	Elf32_Word	h = 0, g;
+
+	assert ( name != NULL );
 
 	while ( *name ) {
 
@@ -68,11 +84,22 @@ Elf32_Word	elf_hash_func( const char *name )
 
 }
 
+/**
+ * Gets the size from an ELF hash table
+ * @param The pointer to an ELF hash table
+ * @return The size in words
+ */
 Elf32_Word	elf_hash_size( Elf32_Word *hashtab )
 {
 	return hashtab[1];
 }
 
+/**
+ * Gets the first bucket in the ELF hashtable for given hash
+ * @param hashtab The hash table
+ * @param hash The hash to lookup
+ * @return The first bucket index
+ */
 Elf32_Word	elf_hash_find( Elf32_Word *hashtab, Elf32_Word hash )
 {
 	Elf32_Word nbucket;
@@ -80,6 +107,14 @@ Elf32_Word	elf_hash_find( Elf32_Word *hashtab, Elf32_Word hash )
 	return hashtab[ 2 + ( hash % nbucket ) ];
 }
 
+
+/**
+ * Gets the next bucket in the ELF hashtable bucket chain
+ * @param The hash table
+ * @param The current bucket
+ * @return The next bucket
+ * @note The caller must check whether the operation is valid.
+ */
 Elf32_Word	elf_hash_next( Elf32_Word *hashtab, Elf32_Word symb )
 {
 
