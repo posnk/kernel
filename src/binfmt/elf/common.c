@@ -127,6 +127,14 @@ Elf32_Word	elf_hash_next( Elf32_Word *hashtab, Elf32_Word symb )
 	return hashtab[ 2 + nbucket + symb ];
 }
 
+/**
+ * Looks up a symbol in the ELF hashtable
+ * @param hashtab The hash table, as a pointer
+ * @param symtab The symbol table, as a pointer
+ * @param strtab The string table, as a pointer
+ * @param name The name of the symbol to lookup
+ * @return The symbol table index of the symbol, or STN_UNDEF.
+ */
 Elf32_Word	elf_findsym(	Elf32_Word *hashtab, 
 				Elf32_Sym *symtab,
 				const char *strtab,
@@ -141,10 +149,6 @@ Elf32_Word	elf_findsym(	Elf32_Word *hashtab,
 	cur = elf_hash_find( hashtab, hash );
 
 	while ( cur != STN_UNDEF ) {
-	
-		if ( symtab[ cur ].st_name != 0 )
-			printf("SYMBOL %i %s cmp %s\n", cur,
-				&strtab[symtab[ cur ].st_name],name);
 	
 		if (	symtab[ cur ].st_name != 0 && 
 			!strcmp( name, &strtab[ symtab[ cur ].st_name ] ) )
