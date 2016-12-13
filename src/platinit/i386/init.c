@@ -126,8 +126,14 @@ void i386_init( multiboot_info_t *mb_info, uint32_t mb_magic )
 			    ( physaddr_t ) &i386_end_kernel );
 
 	physmm_claim_range( 0, 0x100000 );
+	
+	physmm_claim_range( mods, mods + mb_info->mods_count );
+	physmm_claim_range( mb_info, mb_info + 1 );
 
 	printf("bootstrap: multiboot modules:\n");
+
+
+
 	for ( idx = 0; idx < mb_info->mods_count; idx++ ) {
 		if ( mods[idx].string == 0 )
 			str = "<NULL>";
@@ -140,8 +146,12 @@ void i386_init( multiboot_info_t *mb_info, uint32_t mb_magic )
 
 	printf("bootstrap: %u MB of RAM available\n", 
 		physmm_count_free() / (1024*1024));
+	
+	printf("bootstrap: intitializing platform loader\n");
+	
+	platldr_init();
 
-	elfinfo_t elfi;
+	elfinfo_t elfi[ mb_info->mods_count ];
 	
 	for ( idx = 0; idx < mb_info->mods_count; idx++ ) {
 		if ( mods[idx].string == 0 )
@@ -151,10 +161,12 @@ void i386_init( multiboot_info_t *mb_info, uint32_t mb_magic )
 		printf("    start: 0x%08x end: 0x%08x str: %s\n",
 			mods[idx].mod_start, mods[idx].mod_end, str );
 		physmm_claim_range( mods[idx].mod_start, mods[idx].mod_end );
-		memset(&elfi, 0, sizeof(elfinfo_t));
-		elfi.pstart = (void *) mods[idx].mod_start;
-		elflink_firstpass( &elfi );
+		memset(&elfi[idx], 0, sizeof(elfinfo_t));
+		elfi[idx].id = idx;
+		elfi[idx].pstart = (void *) mods[idx].mod_start;
+		elflink_firstpass( &elfi[idx] );
 	}
+	elflink_secondpass( elfi, mb_info->mods_count );
 	for ( ;; ) ;
 
 }
