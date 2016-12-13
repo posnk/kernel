@@ -52,7 +52,7 @@ typedef uint32_t pdir_t;
 #define PAGING_RM_P_PDIR	((pdir_t *) PAGING_RM_A_PDIR)
 #define PAGING_ADDR_PTIDX(AdDr)	((((uintptr_t) (AdDr)) >> 12) & 0x3FF)
 #define PAGING_ADDR_PDIDX(AdDr)	((((uintptr_t) (AdDr)) >> 22) & 0x3FF)
-
+#define PAGING_ADDR_OFF(AdDr)	(((uintptr_t) (AdDr))&0xFFF)
 #define PAGING_RM_PDIDX		(0x3FF)
 #define PAGING_ST_PDIDX		(0x3FE)
 #define PAGING_PHYSWIN_IDX(NuM)	(0x3FF - (NuM))

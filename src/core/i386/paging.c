@@ -197,7 +197,7 @@ physaddr_t	paging_getphys(	physaddr_t dir,
 		paging_rmwindow( pd, STPC );
 	}
 
-	return PAGING_PHYSADDR( pde );
+	return PAGING_PHYSADDR( pte ) | PAGING_ADDR_OFF( va );
 
 _bail_pte_noperm:
 _bail_pte_notpres:
