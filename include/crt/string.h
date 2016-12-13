@@ -59,6 +59,31 @@ void *	memset(	void *dst, int val, size_t len );
 void *	strncpy( void *dst, const void *src, size_t len );
 
 /**
+ * @brief Compares a block of memory to another
+ * @param s1	The first place to compare
+ * @param s2	The second place to compare
+ * @param n	The length of the memory block to compare
+ * @return	Zero when equal
+ */
+int	memcmp( const void *s1, const void *s2, size_t n );
+
+/**
+ * @brief Compares a string to another
+ * @param s1	The first string to compare
+ * @param s2	The second string to compare
+ * @return	Zero when equal
+ */
+int	strcmp( const char *s1, const char *s2 );
+
+/**
+ * @brief Compares the first n characters of a string to another
+ * @param s1	The first string to compare
+ * @param s2	The second string to compare
+ * @return	Zero when equal
+ */
+int	strncmp( const char *s1, const char *s2, size_t n );
+
+/**
  * @brief Finds the length (position of NUL char) of a string
  * @param str	The string to search
  * @return 	The length of the string.
