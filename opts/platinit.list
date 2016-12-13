@@ -1,4 +1,6 @@
 OPT_NASM(i386,platinit/i386/start)
 OPT_C(i386,platinit/i386/init)
+OPT_C(all,platinit/platldr)
 OPT_C(all,binfmt/elf/elfmem)
+OPT_C(all,platinit/elflink)
 OPT_C(all,binfmt/elf/common)
