@@ -99,6 +99,8 @@ void elflink_parse_load( elfinfo_t *elf, Elf32_Phdr *hdr )
 			cfstart = fphys	+ psz;
 			csz = cend - fstart;
 
+//			printf("Copy over: 0x%x to 0x%x\n", cfstart, cdstart );
+
 			/* Copy in the data */
 			memcpy( (void *) cdstart, (void *) cfstart, csz );
    
@@ -117,12 +119,13 @@ void elflink_parse_load( elfinfo_t *elf, Elf32_Phdr *hdr )
 	
 			/* Clear the padded end */
 			memset( (void *) cdstart, 0, psz );
-			
+//			printf("Copy over: 0x%x to 0x%x %x bytes\n", fphys, cphys,
+//				csz);	
 			/* Copy in the data */
 			memcpy( (void *) cphys, (void *) fphys, csz );
 
 		} /* If the page fully contains the file, map it */
-
+//			else printf("Nocopy\n");
 		platldr_map( elf->id, cmaddr, cphys, flags ); 
 
 	}
@@ -196,7 +199,11 @@ void elflink_infofixup( elfinfo_t *elf ) {
 
 	elf->strtab_p = platldr_getphys( elf->strtab );
 	elf->symtab_p = platldr_getphys( elf->symtab );
-	elf->hash_p = platldr_getphys( elf->hash );
+	elf->hash_p  = platldr_getphys( elf->hash );
+	elf->symsz = elf_hash_size( elf->hash_p );
+
+	printf("strtab_p = 0x%08x\n", elf->strtab_p);
+
 	if ( elf->rel )
 		elf->rel_p = platldr_getphys( elf->rel );
 	if ( elf->rela )
@@ -204,7 +211,22 @@ void elflink_infofixup( elfinfo_t *elf ) {
 
 }
 
+void elflink_symtab_fixup( elfinfo_t *elf ) {
+	int n; 
+	Elf32_Addr symtab = (Elf32_Addr) elf->symtab_p;
+	Elf32_Sym *sym;
 
+	for ( n = 0; n < elf->symsz; n++ ) {
+		sym = ( Elf32_Sym * ) ( n * elf->syment + symtab );
+		
+		if ( sym->st_shndx == SHN_UNDEF )
+			continue;
+		
+		sym->st_value -= elf->base;
+		sym->st_value += elf->mbase;
+	} 
+
+}
 
 void elflink_firstpass( elfinfo_t *elf ) {
 	Elf32_Phdr *phdr;
@@ -240,6 +262,89 @@ void elflink_firstpass( elfinfo_t *elf ) {
 
 	platldr_end_image( elf->id, ( elf->end - elf->base ) + elf->mbase );
 	elflink_infofixup( elf );
+	elflink_symtab_fixup( elf );
 
-//	elflink_relocate( elf );
+}
+
+Elf32_Sym elflink_getsym( const char *name, elfinfo_t *elf, int elfcount ) {
+	int n, has_weak = 0, weak_n, bind, weak_s;
+	Elf32_Sym *weak;
+	Elf32_Word sym;
+	Elf32_Sym *sym_p;
+	Elf32_Sym notfound;
+	for ( n = 0; n < elfcount; n++ ) {
+		sym = elf_findsym(	elf[n].hash_p, 
+					elf[n].symtab_p,
+					elf[n].strtab_p,
+					name );
+		
+		if ( sym == STN_UNDEF )
+			continue;		
+
+		sym_p = ( Elf32_Sym *) (((uintptr_t)elf[n].symtab_p) + 
+					( elf[n].syment * sym ));
+
+		if ( sym_p->st_shndx == SHN_UNDEF )
+			continue;
+
+		bind = ELF32_ST_BIND( sym_p->st_info );
+		
+		if ( bind == STB_GLOBAL ) {
+			printf("Bound symbol %s to image %i symbol %i\n", 
+				name, n, sym );
+			return *sym_p;
+		} else if ( bind == STB_WEAK ) {
+			weak = sym_p;
+			weak_n = n;
+			weak_s = sym;
+			has_weak = 1;
+		}
+
+	}
+	
+	if ( has_weak ) {
+		printf("Weakly bound symbol %s to image %i symbol %i\n",
+			name, weak_n, weak_s);
+		return *weak;
+	}
+
+	notfound.st_shndx = SHN_UNDEF;
+
+	printf("Unresolved symbol %s\n", name);
+
+	return notfound;
+}
+
+void elflink_secondpass( elfinfo_t *elf, int elfcount ) {
+	int n,m;
+	Elf32_Addr sym;
+	Elf32_Sym *sym_p, sym_f;
+	const char *name;
+
+	for ( n = 0; n < elfcount; n++ ) {
+		sym = ( Elf32_Addr ) elf[n].symtab_p;
+		
+		for ( m = 0; m < elf[n].symsz; m++ ) {
+			sym_p = ( Elf32_Sym * ) sym;
+			sym += elf[n].syment;
+
+			if ( m == STN_UNDEF )
+				continue;
+
+			if ( sym_p->st_shndx != SHN_UNDEF )
+				continue;
+
+			name = elf[n].strtab_p + sym_p->st_name;
+			sym_f = elflink_getsym( name, elf, elfcount );
+
+			if ( sym_f.st_shndx == SHN_UNDEF )
+				continue;
+
+			sym_p->st_value = sym_f.st_value;
+			sym_p->st_info = sym_f.st_info;
+			sym_p->st_shndx = sym_f.st_shndx;
+
+
+		}
+	}
 }
