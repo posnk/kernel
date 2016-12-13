@@ -35,7 +35,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define STCODE_INUSE	(3)
 #define STCODE_NOENT	(4)
 #define STCODE_NOPERM	(5)
-
+#define STPO		__cst_t __csl; __cst_t *__cst = &__csl
 #define STPD		__cst_t *__cst
 #define STPC		__cst
 #define STPF		( __cst->stcode != STCODE_OK )
@@ -54,7 +54,7 @@ typedef struct {
 
 #define STRET(Value)	\
 	do {\
-		__cst->stcode = STCODE_OK; \
+ 		__cst->stcode = STCODE_OK; \
 		return (Value); \
 	} while(0)
 
