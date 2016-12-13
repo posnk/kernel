@@ -26,15 +26,26 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #include "config.h"
+#include "core/paging.h"
+
 #include <stddef.h>
 #include <stdio.h>
 #include <assert.h>
-
+#include <status.h>
 uintptr_t platldr_image_map = KERNEL_SPLIT;
 int platldr_image_ctr = 0;
 int platldr_cur_image = -1;
 
 physaddr_t platldr_pagedir;
+
+void platldr_init( ) {
+	STPO;
+	platldr_pagedir = paging_newdir( 0, STPC );
+	if ( STPF ) {
+		printf("Error creating pagedir\n");
+		assert(!"BOOH");
+	}
+}
 
 uintptr_t platldr_start_image( int image_id )
 {
@@ -48,15 +59,29 @@ void platldr_end_image( int image_id, uintptr_t end )
 	assert( image_id == platldr_cur_image );
 	assert( end > platldr_image_map );
 	platldr_image_map = end;
+	platldr_cur_image = -1;
 }
 
 void *platldr_getphys( uintptr_t virt ) {
-	return (void *) paging_getphys( platldr_pagedir,
+	STPO;
+	void *out= (void *) paging_getphys( platldr_pagedir,
 					( void * )virt,
-					0 ,; //TODO: Implement
+					0 , STPC ); //TODO: Implement
+//	printf( "Out: 0x%08x In: 0x%08x\n", out, virt );
+	if ( STPF ) {
+		printf("Error dereffing pagedir\n");
+		assert(!"BOOH");
+	}
+	return out;
 }
 
 void platldr_map ( int id, uintptr_t virt, physaddr_t phys, int flags )
 {
-	printf( "Map: 0x%08x to 0x%08x\n", virt, phys );	
+	//printf( "Map: 0x%08x to 0x%08x\n", virt, phys );	
+	STPO;
+	paging_map( platldr_pagedir, (void*) virt, phys, flags, STPC );
+	if ( STPF ) {
+		printf("Error mapping page\n");
+		assert(!"BOOH");
+	}
 }
