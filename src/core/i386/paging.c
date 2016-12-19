@@ -144,6 +144,9 @@ physaddr_t	paging_getphys(	physaddr_t dir,
 
 	cur_dir = paging_getdir();
 	
+	if ( dir == PAGING_CUR_DIR )
+		dir = cur_dir;
+
 	if ( cur_dir != dir ) {
 		pd = paging_mkwindow( dir, STPC );
 		if ( STPF ) {
@@ -259,6 +262,9 @@ physaddr_t      paging_setpe(	physaddr_t dir,
 	assert( pdi != PAGING_ST_PDIDX );
 
 	cur_dir = paging_getdir();
+	
+	if ( dir == PAGING_CUR_DIR )
+		dir = cur_dir;
 
 	if ( cur_dir == dir )
 		pd = PAGING_RM_P_PDIR;
@@ -469,6 +475,9 @@ physaddr_t	paging_newdir(	physaddr_t	dir,
 	}
 
 	cur_dir = paging_getdir();
+	
+	if ( dir == PAGING_CUR_DIR )
+		dir = cur_dir;
 
 	if ( dir == cur_dir )
 		spd = PAGING_RM_P_PDIR;
@@ -554,8 +563,12 @@ void	paging_freedir(		physaddr_t	dir,
 	pdir_t		*pt;
 	pdir_t		 pde;
 	pdir_t		 pte;
+	physaddr_t	 cur_dir;
 
-	assert( dir != paging_getdir() );
+	if ( dir == PAGING_CUR_DIR )
+		dir = cur_dir;
+
+	assert( dir != cur_dir );
 
 	pd = paging_mkwindow( dir, STPC );
 

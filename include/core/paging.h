@@ -32,11 +32,35 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <status.h>
 
 #define PAGE_FLAG_IMPL1		(1 << 31)
+
+/**
+ * Defines a page that is not cached
+ */
 #define PAGE_FLAG_NOCACHE	(32)
+
+/**
+ * Defines a global page, that is to be added to all directories
+ */
 #define PAGE_FLAG_GLOBAL	(16)
+
+/**
+ * Defines a page as user accessible
+ */
 #define PAGE_PERM_U		(8)
+
+/**
+ * Defines a page as readable ( data )
+ */
 #define	PAGE_PERM_R		(4)
+
+/**
+ * Defines a page as writable
+ */
 #define PAGE_PERM_W		(2)
+
+/**
+ * Defines a page as executable
+ */
 #define PAGE_PERM_X		(1)
 #define PAGE_PERM_RW		PAGE_PERM_W | PAGE_PERM_R
 #define PAGE_PERM_XR		PAGE_PERM_X | PAGE_PERM_R
@@ -55,8 +79,15 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 									ARCH_PAGE_SIZE )
 
 /**
+ * Signal value for dir argument of paging functions to select
+ * the paging directory the processor is currently using
+ */
+#define PAGING_CUR_DIR	(1)
+
+/**
  * @brief Maps a virtual address to a physical address in the specified dir
- * @param dir	The physical address of the directory
+ * @param dir	The directory to operate on, may be PAGING_CUR_DIR
+ *				to select the active paging directory
  * @param va	The virtual address to map
  * @param pa	The physical address to map
  * @param flags	The options
@@ -85,7 +116,8 @@ void		paging_rmwindow(	void *va,
 
 /**
  * @brief Unmaps a physical address from an virtual address
- * @param dir	The directory to operate on
+ * @param dir	The directory to operate on, may be PAGING_CUR_DIR
+ *				to select the active paging directory
  * @param va	The virtual address to unmap
  * @return	The physical address previously mapped at that address
  */
@@ -95,7 +127,8 @@ physaddr_t	paging_unmap(	physaddr_t dir,
 
 /**
  * @brief Sets a page not present and change the physical address
- * @param dir	The directory to operate on
+ * @param dir	The directory to operate on, may be PAGING_CUR_DIR
+ *				to select the active paging directory
  * @param va	The virtual address to modify
  * @param pa	The new physical address to set ( PAGE_PHYS_UNCHANGED to \
  *		preserve the physical address )
@@ -108,7 +141,8 @@ physaddr_t	paging_swmap(	physaddr_t dir,
 
 /**
  * @brief Clones the global part of a page directory
- * @param dir	The directory to clone
+ * @param dir	The directory to clone, may be PAGING_CUR_DIR
+ *				to select the active paging directory
  * @return	The new page directory.
  */
 physaddr_t	paging_newdir(	physaddr_t dir,
@@ -141,6 +175,10 @@ void paging_enable( physaddr_t addr );
 
 /**
  * @brief Gets the physical address for a virtual address
+ * @param dir	The directory to operate on, may be PAGING_CUR_DIR
+ *				to select the active paging directory
+ * @param addr	The virtual address
+ * @param flags The rights requested
  * @return	The physical address
  */
 physaddr_t	paging_getphys( physaddr_t	dir,
