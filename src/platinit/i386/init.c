@@ -31,10 +31,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <stdio.h>
 #include "core/physmm.h"
 #include "arch/i386/multiboot.h"
+#include "core/paging.h"
+#include "platinit/paging.h"
 #include "platinit/elflink.h"
 
 extern void *i386_end_kernel;
 extern void *i386_start_kernel;
+
+physaddr_t initial_pagedir;
 
 char *mb_mmap_types[6] = {
 	"TYPE0",
@@ -45,11 +49,14 @@ char *mb_mmap_types[6] = {
 	"BADRAM"
 };
 
+
+
 /**
  * C entry point, called from start.s
  */
 void i386_init( multiboot_info_t *mb_info, uint32_t mb_magic )
 {
+	STPO;
 	char *str;
 	int idx;
 	int mmap_s = 0;
@@ -131,9 +138,6 @@ void i386_init( multiboot_info_t *mb_info, uint32_t mb_magic )
 	physmm_claim_range( mb_info, mb_info + 1 );
 
 	printf("bootstrap: multiboot modules:\n");
-
-
-
 	for ( idx = 0; idx < mb_info->mods_count; idx++ ) {
 		if ( mods[idx].string == 0 )
 			str = "<NULL>";
@@ -146,7 +150,55 @@ void i386_init( multiboot_info_t *mb_info, uint32_t mb_magic )
 
 	printf("bootstrap: %u MB of RAM available\n", 
 		physmm_count_free() / (1024*1024));
+
+	printf("bootstrap: creating page directory\n");
+	platinit_mkdir( STPC );
+	if ( STPF ) {
+		printf("bootstrap: failed to create page directory\n");
+		goto failure;
+	}
+
+	printf("bootstrap: identity mapping loader code and data\n");
+	platinit_idmap( (physaddr_t) &i386_start_kernel, 
+					(physaddr_t) &i386_end_kernel,
+					PAGE_PERM_XRW,
+					STPC );
+	if ( STPF )
+		goto idmapfail;
+	platinit_idmap( (physaddr_t) mb_info,
+					(physaddr_t) &mb_info[1],
+					PAGE_PERM_XRW,
+					STPC );
+	if ( STPF )
+		goto idmapfail;
+	platinit_idmap( (physaddr_t) mods,
+					(physaddr_t) &mods[ mb_info->mods_count ],
+					PAGE_PERM_XRW,
+					STPC );
+	if ( STPF )
+		goto idmapfail;
+	for ( idx = 0; idx < mb_info->mods_count; idx++ ) {
+		platinit_idmap( (physaddr_t) mods[idx].mod_start,
+						(physaddr_t) mods[idx].mod_end,
+						PAGE_PERM_XRW,
+						STPC );
+		if ( STPF )
+			goto idmapfail;
+	}
 	
+	//TODO: ID map other parts of the multiboot info
+
+	printf("bootstrap: identity mapping first megabyte\n");
+	
+	platinit_idmap( 0x0, 0x100000,	PAGE_PERM_XRW |
+									PAGE_FLAG_NOCACHE, STPC );
+	if ( STPF )
+		goto idmapfail;
+
+	printf("bootstrap: enable paging\n");
+	paging_enable( initial_pagedir );
+
+#ifdef WORKNEXT
 	printf("bootstrap: intitializing platform loader\n");
 	
 	platldr_init();
@@ -167,6 +219,15 @@ void i386_init( multiboot_info_t *mb_info, uint32_t mb_magic )
 		elflink_firstpass( &elfi[idx] );
 	}
 	elflink_secondpass( elfi, mb_info->mods_count );
+
+#endif 
+
+	goto failure;
+
+idmapfail:
+	printf("bootstrap: failed to identitymap!\n");
+failure:
+	printf("bootstrap: halting processor!\n");
 	for ( ;; ) ;
 
 }
