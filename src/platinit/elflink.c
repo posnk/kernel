@@ -44,7 +44,7 @@ void elflink_parse_load( elfinfo_t *elf, Elf32_Phdr *hdr )
 
 	/* Determine base address */
 	if ( elf->base == 0xFFFFFFFF ) {
-		elf->base = arch_page_floor( hdr->p_vaddr );
+		elf->base = page_floor( hdr->p_vaddr );
 		elf->mbase = platldr_start_image( elf->id );
 	}
 
@@ -60,18 +60,18 @@ void elflink_parse_load( elfinfo_t *elf, Elf32_Phdr *hdr )
 
 	//Note: Assume page size power of 2
 	/* Calculate the page boundaries of the LOAD */
-	rstart = arch_page_floor( hdr->p_vaddr );
-	rend = arch_page_ceil( hdr->p_vaddr + hdr->p_memsz );
+	rstart = page_floor( hdr->p_vaddr );
+	rend = page_ceil( hdr->p_vaddr + hdr->p_memsz );
 	
 	fstart = hdr->p_vaddr;
 	fend = hdr->p_vaddr + hdr->p_filesz;
 
 	/* pstart contains the physical offset of the segment data */
 	pstart = (physaddr_t) elf->pstart;
-	pstart += arch_page_floor(hdr->p_offset);
+	pstart += page_floor(hdr->p_offset);
 
 	/* Calculate the page boundary of the last filled page */
-	frend = arch_page_ceil(fend);
+	frend = page_ceil(fend);
 	
 	/* Determine image end address */
 	if ( rend > elf->end )
@@ -169,6 +169,9 @@ void elflink_parse_dynamic( elfinfo_t *elf, Elf32_Phdr *hdr )
 				break;
 			case DT_STRSZ:
 				elf->strsz = ent[e].d_un.d_val;
+				break;
+			case DT_RELENT:
+				elf->relent = ent[e].d_un.d_val;
 				break;
 			case DT_RELSZ:
 				elf->relsz = ent[e].d_un.d_val;
@@ -346,5 +349,6 @@ void elflink_secondpass( elfinfo_t *elf, int elfcount ) {
 
 
 		}
+		elfreloc_apply ( &elf[n] );
 	}
 }

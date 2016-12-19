@@ -82,6 +82,8 @@ typedef struct {
 	/** Pointer to the relocations */
 	Elf32_Rel *	rel_p;
 
+	Elf32_Word	relent;
+
 	Elf32_Word	symsz;
 	
 	/** The size of the string table in bytes */

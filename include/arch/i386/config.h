@@ -38,10 +38,6 @@ typedef uint32_t	physaddr_t;
 
 #define PHYSICAL_FRAME_COUNT	(1048576)
 #define ARCH_PAGE_SIZE		(4096)
-
-#define arch_page_floor(AdDr)	(((uintptr_t) AdDr) & ~(ARCH_PAGE_SIZE - 1))
-#define arch_page_ceil(AdDr)	arch_page_floor( ((uintptr_t)AdDr) - 1 + \
-				ARCH_PAGE_SIZE )
 #endif
 
 #endif

@@ -27,6 +27,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #ifndef __core_paging__
 #define __core_paging__
+
 #include "config.h"
 #include <status.h>
 
@@ -38,6 +39,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define PAGE_PERM_W		(2)
 #define PAGE_PERM_X		(1)
 #define PAGE_PHYS_UNCHANGED	(1)
+
+#define page_mod(AdDr)		(((uintptr_t) AdDr) & \
+								 (ARCH_PAGE_SIZE - 1))
+#define page_floor(AdDr)	(((uintptr_t) AdDr) & \
+								 ~(ARCH_PAGE_SIZE - 1))
+#define page_ceil(AdDr)		page_floor( ((uintptr_t)AdDr) - 1 + \
+									ARCH_PAGE_SIZE )
 
 /**
  * @brief Maps a virtual address to a physical address in the specified dir
