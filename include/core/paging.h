@@ -38,6 +38,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define	PAGE_PERM_R		(4)
 #define PAGE_PERM_W		(2)
 #define PAGE_PERM_X		(1)
+#define PAGE_PERM_RW		PAGE_PERM_W | PAGE_PERM_R
+#define PAGE_PERM_XR		PAGE_PERM_X | PAGE_PERM_R
+#define PAGE_PERM_XRW		PAGE_PERM_XR | PAGE_PERM_W
+#define PAGE_PERM_UX		PAGE_PERM_X | PAGE_PERM_U
+#define PAGE_PERM_UXR		PAGE_PERM_UX | PAGE_PERM_R
+#define PAGE_PERM_URW		PAGE_PERM_U | PAGE_PERM_R | PAGE_PERM_W
+#define PAGE_PERM_UXRW		PAGE_PERM_UXR | PAGE_PERM_W
 #define PAGE_PHYS_UNCHANGED	(1)
 
 #define page_mod(AdDr)		(((uintptr_t) AdDr) & \
@@ -119,6 +126,18 @@ void		paging_freedir(	physaddr_t dir,
  * @return	The current page directory
  */
 physaddr_t	paging_getdir( void );
+
+/**
+ * @brief Switches page directories
+ * @param dir	The new page directory
+ */
+void paging_setdir( physaddr_t addr );
+
+/**
+ * @brief Enables paging
+ * @param dir	The new page directory
+ */
+void paging_enable( physaddr_t addr );
 
 /**
  * @brief Gets the physical address for a virtual address

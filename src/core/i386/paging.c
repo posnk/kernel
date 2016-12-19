@@ -33,6 +33,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "arch/i386/archlib.h"
 #include "core/physmm.h"
 
+int paging_enabled = 0;
+
 #ifdef	OPT_no_paging
 
 void *		paging_mkwindow(	physaddr_t pa,
@@ -56,6 +58,9 @@ void *		paging_mkwindow(	physaddr_t pa,
 	pdir_t	pe;
 	int	pw;
 	void *	va;
+
+	if ( !paging_enabled )
+		STRET( ( void * ) ( uintptr_t ) pa );
 
 	pt = PAGING_RM_P_PTAB( PAGING_ST_PDIDX );
 
@@ -86,6 +91,9 @@ void		paging_rmwindow(	void *va,
 {
 	int	pti, pdi;
 	pdir_t *pt;
+
+	if ( !paging_enabled )
+		STRETV;
 	
 	pti = PAGING_ADDR_PTIDX( va );
 	pdi = PAGING_ADDR_PDIDX( va );
@@ -106,6 +114,20 @@ physaddr_t	paging_getdir( void )
 
 	return ( physaddr_t ) ( i386_get_cr3( ) & 0xFFFFFFF0 );
 
+}
+
+void paging_setdir( physaddr_t addr ) {
+	i386_set_cr3( addr & 0xFFFFFFF0 );
+	i386_invtlb_all();
+}
+
+void paging_enable( physaddr_t addr ) {
+	uint32_t cr0;
+	i386_set_cr3( addr );
+	cr0 = i386_get_cr0( );
+	cr0 |= PAGING_CR0_PG;
+	i386_set_cr0( cr0 );
+	paging_enabled = 1;
 }
 
 physaddr_t	paging_getphys(	physaddr_t dir,

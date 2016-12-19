@@ -31,6 +31,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 typedef uint32_t pdir_t;
 
+#define PAGING_CR0_PG		(1 << 31)
+
 #define	PAGING_BIT_PRESENT	(1 << 0)
 #define PAGING_BIT_WRITE	(1 << 1)
 #define PAGING_BIT_USER		(1 << 2)
