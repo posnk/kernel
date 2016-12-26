@@ -29,7 +29,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "core/physmm.c"
 
 
-void elflink_parse_load( modinfo_t *elf, Elf32_Phdr *hdr )
+void modlink_parse_load( modinfo_t *elf, Elf32_Phdr *hdr )
 {
 	Elf32_Addr rstart, rend;
 	Elf32_Addr fstart, fend, frend;
@@ -172,7 +172,6 @@ fend_nomem:
 	return;
 	
 }
-
 
 /**
  * Parse the PT_DYNAMIC segment and initialize the fields in
