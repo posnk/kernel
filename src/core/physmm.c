@@ -30,6 +30,106 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <assert.h>
 #include "core/physmm.h"
 
+#define pmsize( Info )	( (Info)->end - (Info)->start )
+
+pmdomain_t physmm_core_domain;
+
+pmarea_t *physmm_alloc_desc( pmdomain_t *domain )
+{
+	int pos;
+	pmarea_t *cur, *res;
+
+	assert( domain != NULL );
+
+	for ( cur = domain->info_list; cur != NULL; cur = cur->next ) {
+		if ( cur->acnt < domain->infolen )
+			break;
+	}
+
+	if ( cur == NULL )
+		return NULL;
+
+	for ( pos = 0; pos < domain->infolen; pos++ ) {
+		if ( PMAREA_IS_NONE( cur->areas[ pos ]->flags ) )
+			break;
+	}
+
+	if ( pos == domain->infolen )
+		return;
+
+	cur->acnt++;
+
+	cur = cur->areas+pos;
+
+	cur->flags &=~ PMAREA_TYPE_MASK;
+	cur->flags |=  PMAREA_TYPE_RSVD;
+
+	return cur;
+}
+
+void physmm_create_infoframe( pmarea_t *area )
+{
+	pm_domain_t *domain;
+	pmarea_t 	*info;
+	pmarea_t	 tmpinfo;
+	physaddr_t	 size;
+	bmap_t		*bmap;
+	int oldflags;
+
+	assert( area != NULL );
+
+	/* Extract domain */
+	domain = area->domain;
+
+	assert( domain != NULL );
+
+	size = pmsize( area );
+
+	/* If we're asked to create an infoframe on a larger area */
+	/* split its start off to form the infoblock */
+	if ( size > domain->framesize ) {
+		tmpinfo.flags = PMAREA_TYPE_INFO;
+		tmpinfo.domain= area->domain;
+		tmpinfo.start = area->start;
+		tmpinfo.end	  = area->end;
+		area->start = area->start + domain->framesize;
+		info = &tmpinfo;
+	} else
+		info = area;
+
+	/* Page in the info frame */	
+	physmm_map_infoframe( info );
+
+	/* Clear infoframe */
+	memset( info->areas, 0, sizeof( pmarea_t ) * domain->infolen );
+	info->acnt = 0;
+
+	/* Copy infoframe descriptor onto itself */
+	if ( info != area ) {
+		info->areas[0] = tmpinfo;
+		info->acnt = 1;
+		info = info->areas;	
+	}	
+
+	/* Link it into the info frame list */
+	info->next = domain->info_list
+	info->prev = 0;
+	domain->info_list = info;
+
+}
+
+void physmm_create_domain( )
+{
+	pmdomain_t *domain;
+	domain->free_list = NULL;
+	domain->info_list = NULL;
+	domain->infolen = domain->framesize / sizeof( pmarea_t );
+}
+
+void physmm_init( )
+{
+}
+
 uint32_t physmm_bitmap[PHYSMM_BITMAP_SIZE];
 
 void physmm_set_bit(physaddr_t address)

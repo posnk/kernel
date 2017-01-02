@@ -29,9 +29,83 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define __physmm__
 
 #include "config.h"
-#include <string.h>
-#include <assert.h>
-#include "core/physmm.h"
+
+#define PMAREA_TYPE_NONE		(0)
+#define PMAREA_TYPE_USED		(1)
+#define PMAREA_TYPE_INFO		(2)
+#define PMAREA_TYPE_MTAB		(3)
+#define PMAREA_TYPE_RESV		(4)
+#define PMAREA_TYPE_MMIO		(5)
+#define PMAREA_TYPE_FREE		(6)
+#define PMAREA_TYPE_MASK		(7)
+#define PMAREA_GET_TYPE(Flags)	(Flags & PMAREA_TYPE_MASK)
+#define PMAREA_IS_FREE(Flags)	(PMAREA_GET_TYPE(Flags) == \
+								 PMAREA_TYPE_FREE)
+#define PMAREA_IS_USED(Flags)	(PMAREA_GET_TYPE(Flags) == \
+								 PMAREA_TYPE_USED)
+#define PMAREA_IS_INFO(Flags)	(PMAREA_GET_TYPE(Flags) == \
+								 PMAREA_TYPE_INFO)
+#define PMAREA_IS_MTAB(Flags)	(PMAREA_GET_TYPE(Flags) == \
+								 PMAREA_TYPE_MTAB)
+#define PMAREA_IS_RESV(Flags)	(PMAREA_GET_TYPE(Flags) == \
+								 PMAREA_TYPE_RESV)
+#define PMAREA_IS_MMIO(Flags)	(PMAREA_GET_TYPE(Flags) == \
+								 PMAREA_TYPE_MMIO)
+#define PMAREA_IS_NONE(Flags)	(PMAREA_GET_TYPE(Flags) == \
+								 PMAREA_TYPE_NONE)
+
+/**
+ * Structure describing a continuous run of PM
+ */
+struct pmarea {
+
+	/** Contains information about this region */
+	int			flags;
+
+	/** Link to the containing domain */
+	struct pmdomain *	domain;
+
+	/** Link to the previous physical memory area */
+	struct pmarea *	next;
+
+	/** Link to the next physical memory area */
+	struct pmarea *	prev;
+
+	/** Start address of this area */
+	physaddr_t	start;
+
+	/** End address of this area */
+	physaddr_t	end;
+
+	/** Reference count */
+	int			refcount;
+
+	/** Type specific information */
+	union {
+		struct {
+			struct pmarea *areas;
+			int	acnt;
+		};
+
+	};
+
+};
+
+/**
+ * Describes a PM domain
+ */
+struct pmdomain {
+	physaddr_t	start;
+	physaddr_t	end;
+	pmarea_t *	free_list;
+	pmarea_t *	info_list;
+	physaddr_t	framesize;
+	int			infolen;
+};
+
+typedef struct pmarea pmarea_t;
+
+
 
 //TODO: Adapt this constant to suit different physical address widths
 #define PHYSMM_BITMAP_SIZE	(PHYSICAL_FRAME_COUNT/32)
