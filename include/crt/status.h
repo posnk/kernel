@@ -74,7 +74,7 @@ typedef struct {
 		__cst->stln = __LINE__; \
 		return; \
 	} while(0)
-
+	
 #define STERR(Value, Code, Message)	\
 	do {\
 		__cst->stcode = (Code); \
@@ -82,6 +82,15 @@ typedef struct {
 		__cst->stfile = __FILE__; \
 		__cst->stln = __LINE__; \
 		return (Value); \
+	} while(0)
+
+#define STERRF(Code, Message, Label)	\
+	do {\
+		__cst->stcode = (Code); \
+		__cst->stmsg = (Message); \
+		__cst->stfile = __FILE__; \
+		__cst->stln = __LINE__; \
+		goto Label; \
 	} while(0)
 
 #else
@@ -98,6 +107,13 @@ typedef struct {
 		__cst->stcode = (int) (Message); \
 		__cst->stcode = (Code); \
 		return (Value); \
+	} while(0)
+
+#define STERRF(Code, Message, Label)	\
+	do {\
+		__cst->stcode = (Code); \
+		__cst->stmsg = (Message); \
+		goto Label; \
 	} while(0)
 
 #endif

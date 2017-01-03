@@ -1,5 +1,5 @@
 /******************************************************************************\
-Copyright (C) 2015 Peter Bosch
+Copyright (C) 2017 Peter Bosch
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -26,15 +26,17 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #include "config.h"
-#include "core/physmm.c"
+#include "core/physmm.h"
+#include "modlink/modlink.h"
 
-
-void elflink_parse_load( modinfo_t *elf, Elf32_Phdr *hdr )
+void modlink_parse_load( modinfo_t *mod, Elf32_Phdr *hdr, STPD )
 {
 	Elf32_Addr rstart, rend;
 	Elf32_Addr fstart, fend, frend;
 	Elf32_Addr caddr, cend, cmaddr;
-	physaddr_t cphys, pstart, fphys, cdstart, cfstart, csz, psz;
+	Elf32_Addr imstart, impstart, cdstart, cfstart;
+	Elf32_Word psz, csz;
+	physaddr_t cphys;
 	int flags;
 
 	/* Determine base address */
@@ -62,8 +64,8 @@ void elflink_parse_load( modinfo_t *elf, Elf32_Phdr *hdr )
 	fend = hdr->p_vaddr + hdr->p_filesz;
 
 	/* pstart contains the physical offset of the segment data */
-	pstart = (physaddr_t) mod->pstart;
-	pstart += arch_page_floor(hdr->p_offset);
+	imstart = mod->image_virt;
+	imstart += arch_page_floor(hdr->p_offset);
 
 	/* Calculate the page boundary of the last filled page */
 	frend = arch_page_ceil(fend);
@@ -76,7 +78,7 @@ void elflink_parse_load( modinfo_t *elf, Elf32_Phdr *hdr )
 	for ( caddr = rstart; caddr < frend; caddr = cend ) {
 		cend = caddr + ARCH_PAGE_SIZE;
 		cmaddr = (caddr - mod->base) + mod->mbase;
-		cphys = fphys = caddr - rstart + pstart;
+		impstart = caddr - rstart + imstart;
 		if ( caddr < fstart ) {
 			/* This page does not fully contain the file */
 
@@ -84,19 +86,26 @@ void elflink_parse_load( modinfo_t *elf, Elf32_Phdr *hdr )
 			cphys = physmm_alloc_frame();
 
 			/* Check whether the allocation succeded */
-			if ( cphys == PHYSMM_NO_FRAME ) {
-				goto fstart_nomem;
-			}
+			if ( cphys == PHYSMM_NO_FRAME )
+				STERRV( STCODE_NOMEM, 
+						"No memory to allocate segment start frame" );
+			
+			/* Map the page */
+			modlink_map( mod, cmaddr, cphys, flags, STPC );
+			
+			/* Check for errors */
+			if ( STPF )
+				goto fstart_nomap;
 
 			/* Calculate the padding size */
 			psz = fstart - caddr;
 
 			/* Clear the padded start */
-			memset( (void *) cphys, 0, psz );
+			memset( (void *) cmaddr, 0, psz );
 
 			/* Calculate the offsets */
-			cdstart = cphys + psz;
-			cfstart = fphys	+ psz;
+			cdstart = cmaddr + psz;
+			cfstart = impstart + psz;
 			csz = cend - fstart;
 
 			/* Copy in the data */
@@ -109,65 +118,80 @@ void elflink_parse_load( modinfo_t *elf, Elf32_Phdr *hdr )
 			cphys = physmm_alloc_frame();
 
 			/* Check whether we had enough memory */
-			if ( cphys == PHYSMM_NO_FRAME ) {
-				goto fend_nomem;
-			}
+			if ( cphys == PHYSMM_NO_FRAME )
+				STERRF( STCODE_NOMEM, 
+						"No memory to allocate segment end frame",
+						undomap );
+			
+			/* Map the page */
+			modlink_map( mod, cmaddr, cphys, flags, STPC );
+			
+			/* Check for errors */
+			if ( STPF )
+				goto undomap;
 			
 			/* Calculate the padding size */
 			psz = cend - fend;
 		
 			/* Calculate the data size and padding start */
 			csz = fend - caddr;
-			cdstart = cphys + csz;
+			cdstart = cmaddr + csz;
 	
 			/* Clear the padded end */
 			memset( (void *) cdstart, 0, psz );
 
 			/* Copy in the data */
-			memcpy( (void *) cphys, (void *) fphys, csz );
+			memcpy( (void *) cmaddr, (void *) impaddr, csz );
 
-		} /* If the page fully contains the file, map it */
-//			else printf("Nocopy\n");
-		platldr_map( mod->id, cmaddr, cphys, flags ); 
+		} else {
+		
+			modlink_remap( mod, cmaddr, impaddr, flags, STPC );
+			
+			/* Check for errors */
+			if ( STPF )
+				goto noremap;
+		}
 
 	}
 
 	/* Map all pages which should not contain file data */
 	for ( caddr = frend; caddr < rend; caddr = cend ) {
 		cend = caddr + ARCH_PAGE_SIZE;
-		cphys = physmm_alloc_frame();
 		cmaddr = (caddr - mod->base) + mod->mbase;
-		memset( (void *) cphys, 0, ARCH_PAGE_SIZE );
-		platldr_map( mod->id, cmaddr, cphys, flags );
+		
+		/* Allocate a physical frame */
+		cphys = physmm_alloc_frame();
+
+		/* Check whether we had enough memory */
+		if ( cphys == PHYSMM_NO_FRAME )
+			STERRF( STCODE_NOMEM, 
+					"No memory to allocate segment end frame",
+					undomap );
+		
+		/* Map the frame */
+		modlink_map( mod->id, cmaddr, cphys, flags, STPC );
+			
+		/* Check for errors */
+		if ( STPF )
+			goto undomap;
+			
+		/* Clear the page */
+		memset( (void *) cmaddr, 0, ARCH_PAGE_SIZE );
 	}
 
-fstart_nomem:
-
-	STERRV( STCODE_NOMEM, 
-		"No memory to allocate segment start frame" );
-	return;
-
-fend_nomem:
-	
+undomap:
 	fend = caddr;
 
 	/* Unmap all mapped pages */
-	for ( caddr = rstart; caddr < fend; caddr = cend ) {
+	for ( caddr = rstart; caddr < rend; caddr = cend ) {
 		cend = caddr + ARCH_PAGE_SIZE;
 		cmaddr = (caddr - mod->base) + mod->mbase;
 		
-		/* Free the start frame */
-		if ( caddr < fstart ) {
-			cphys = modlink_getphys( cmaddr );
-			physmm_free_frame( cphys );
-		}
-
-		modlink_unmap( cmaddr );
+		/* Actually unmap the page */
+		modlink_unmap_unsafe( cmaddr );
+		
 		
 	}
-
-	STERRV( STCODE_NOMEM, 
-		"No memory to allocate segment end frame" );
 
 	return;
 	
@@ -255,19 +279,19 @@ void modlink_parse_dynamic( modinfo_t *mod, Elf32_Phdr *hdr )
 
 		switch( ent->d_tag ) {
 			case DT_STRTAB:
-				mod->strtab = ent->d_un.d_ptr;
+				mod->strtab = (ent->d_un.d_ptr - mod->base ) + mod->mbase;
 				break;
 			case DT_SYMTAB:
-				mod->symtab = ent->d_un.d_ptr;
+				mod->symtab = (ent->d_un.d_ptr - mod->base ) + mod->mbase;
 				break;
 			case DT_HASH:
-				mod->hash = ent->d_un.d_ptr;
+				mod->hash = (ent->d_un.d_ptr - mod->base ) + mod->mbase;
 				break;
 			case DT_REL:
-				mod->rel = ent->d_un.d_ptr;
+				mod->rel = (ent->d_un.d_ptr - mod->base ) + mod->mbase;
 				break;
 			case DT_RELA:
-				mod->rela = ent->d_un.d_ptr;
+				mod->rela = (ent->d_un.d_ptr - mod->base ) + mod->mbase;
 				break;
 			case DT_STRSZ:
 				mod->strsz = ent->d_un.d_val;
