@@ -33,7 +33,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "arch/i386/multiboot.h"
 #include "core/paging.h"
 #include "platinit/paging.h"
-#include "platinit/elflink.h"
+#include "modlink/modlink.h"
 
 extern void *i386_end_kernel;
 extern void *i386_start_kernel;
@@ -198,13 +198,9 @@ void i386_init( multiboot_info_t *mb_info, uint32_t mb_magic )
 	printf("bootstrap: enable paging\n");
 	paging_enable( initial_pagedir );
 
-#ifdef WORKNEXT
-	printf("bootstrap: intitializing platform loader\n");
+	printf("bootstrap: intitializing module linker\n");
 	
-	platldr_init();
-
-	elfinfo_t elfi[ mb_info->mods_count ];
-	
+	modlink_init();
 	for ( idx = 0; idx < mb_info->mods_count; idx++ ) {
 		if ( mods[idx].string == 0 )
 			str = "<NULL>";
@@ -212,18 +208,28 @@ void i386_init( multiboot_info_t *mb_info, uint32_t mb_magic )
 			str = (char *) mods[idx].string;
 		printf("    start: 0x%08x end: 0x%08x str: %s\n",
 			mods[idx].mod_start, mods[idx].mod_end, str );
-		physmm_claim_range( mods[idx].mod_start, mods[idx].mod_end );
-		memset(&elfi[idx], 0, sizeof(elfinfo_t));
-		elfi[idx].id = idx;
-		elfi[idx].pstart = (void *) mods[idx].mod_start;
-		elflink_firstpass( &elfi[idx] );
+		sz = mods[idx].mod_end - mods[idx].mod_start;
+		modlink_load_image( (void *) mods[idx].mod_start, sz, STPC );
+		if ( STPF )
+			goto modulefail;
 	}
-	elflink_secondpass( elfi, mb_info->mods_count );
-
-#endif 
-
+	modlink_secondpass( STPC );
+	if ( STPF )
+		goto linkfail;
+	printf("bootstrap: dynamically looking up and calling \"main\"\n");
+	modlink_call( "main", NULL, STPC );
+	if ( STPF )
+		goto callfail;
 	goto failure;
-
+callfail:
+	printf("bootstrap: failed to call main!\n");
+	goto failure;
+modulefail:
+	printf("bootstrap: failed to load modules!\n");
+	goto failure;
+linkfail:
+	printf("bootstrap: failed to link modules!\n");
+	goto failure;
 idmapfail:
 	printf("bootstrap: failed to identitymap!\n");
 failure:
