@@ -35,6 +35,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define STCODE_INUSE	(3)
 #define STCODE_NOENT	(4)
 #define STCODE_NOPERM	(5)
+#define STCODE_NOIMPL	(6)
 #define STPO		__cst_t __csl; __cst_t *__cst = &__csl
 #define STPD		__cst_t *__cst
 #define STPC		__cst
@@ -74,7 +75,7 @@ typedef struct {
 		__cst->stln = __LINE__; \
 		return; \
 	} while(0)
-
+	
 #define STERR(Value, Code, Message)	\
 	do {\
 		__cst->stcode = (Code); \
@@ -82,6 +83,15 @@ typedef struct {
 		__cst->stfile = __FILE__; \
 		__cst->stln = __LINE__; \
 		return (Value); \
+	} while(0)
+
+#define STERRF(Code, Message, Label)	\
+	do {\
+		__cst->stcode = (Code); \
+		__cst->stmsg = (Message); \
+		__cst->stfile = __FILE__; \
+		__cst->stln = __LINE__; \
+		goto Label; \
 	} while(0)
 
 #else
@@ -98,6 +108,13 @@ typedef struct {
 		__cst->stcode = (int) (Message); \
 		__cst->stcode = (Code); \
 		return (Value); \
+	} while(0)
+
+#define STERRF(Code, Message, Label)	\
+	do {\
+		__cst->stcode = (int) (Message); \
+		__cst->stcode = (Code); \
+		goto Label; \
 	} while(0)
 
 #endif

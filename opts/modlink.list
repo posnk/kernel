@@ -1,0 +1,5 @@
+OPT_C(all,modlink/load)
+OPT_C(all,modlink/map)
+OPT_C(all,modlink/mgr)
+OPT_C(all,modlink/link)
+OPT_C(i386,modlink/i386/reloc)

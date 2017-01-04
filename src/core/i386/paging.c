@@ -446,9 +446,9 @@ physaddr_t	paging_newdir(	physaddr_t	dir,
 	int		 i1, stc;
 	char *		 ste;
 	pdir_t		*spd;
-	pdir_t		*dpd;
+	pdir_t		*dpd, *dpt;
 	pdir_t		 pde;
-	physaddr_t	 cur_dir, nd;	
+	physaddr_t	 cur_dir, nd, rm;	
 
 	if ( dir == 0 ) {
 		
@@ -467,6 +467,34 @@ physaddr_t	paging_newdir(	physaddr_t	dir,
 		}
 
 		memset( dpd, 0, sizeof( pdir_t ) * PAGING_PAGEDIR_LENGTH );
+
+		dpd[ PAGING_RM_PDIDX ] = PAGING_BIT_WRITE 	|
+			PAGING_BIT_PRESENT	|
+			PAGING_BIT_USER		|
+			PAGING_PHYSADDR( nd );
+
+		rm = physmm_alloc_frame();
+
+		if ( rm == PHYSMM_NO_FRAME ) {
+			STERR(0, STCODE_NOMEM,
+				 "No memory left trying to allocate recursive map");
+		}
+
+		dpt = paging_mkwindow( rm, STPC );
+
+		if ( STPF ) {
+			STERR(0, STCODE_NORES,
+				 "No physical memory window available" );
+		}
+
+		memset( dpt, 0, sizeof( pdir_t ) * PAGING_PAGETBL_LENGTH );
+
+		dpd[ PAGING_ST_PDIDX ] = PAGING_BIT_WRITE 	|
+			PAGING_BIT_PRESENT	|
+			PAGING_BIT_GLOBAL		|
+			PAGING_PHYSADDR( rm );
+
+		paging_rmwindow( dpt, STPC );
 
 		paging_rmwindow( dpd, STPC );
 	

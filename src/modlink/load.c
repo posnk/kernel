@@ -1,5 +1,5 @@
 /******************************************************************************\
-Copyright (C) 2015 Peter Bosch
+Copyright (C) 2017 Peter Bosch
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -26,21 +26,26 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #include "config.h"
-#include "core/physmm.c"
+#include <status.h>
+#include "core/physmm.h"
+#include "core/paging.h"
+#include "modlink/modlink.h"
+#include <stdio.h>
 
-
-void modlink_parse_load( modinfo_t *elf, Elf32_Phdr *hdr )
+void modlink_parse_load( modinfo_t *mod, Elf32_Phdr *hdr, STPD )
 {
 	Elf32_Addr rstart, rend;
 	Elf32_Addr fstart, fend, frend;
 	Elf32_Addr caddr, cend, cmaddr;
-	physaddr_t cphys, pstart, fphys, cdstart, cfstart, csz, psz;
+	Elf32_Addr imstart, impstart, cdstart, cfstart;
+	Elf32_Word psz, csz;
+	physaddr_t cphys;
 	int flags;
 
 	/* Determine base address */
 	if ( mod->base == 0xFFFFFFFF ) {
-		mod->base = arch_page_floor( hdr->p_vaddr );
-		mod->mbase = platldr_start_image( mod->id );
+		mod->base = page_floor( hdr->p_vaddr );
+		mod->mbase = modlink_image_start( mod );
 	}
 
 	/* Setup page flags */
@@ -55,28 +60,24 @@ void modlink_parse_load( modinfo_t *elf, Elf32_Phdr *hdr )
 
 	//Note: Assume page size power of 2
 	/* Calculate the page boundaries of the LOAD */
-	rstart = arch_page_floor( hdr->p_vaddr );
-	rend = arch_page_ceil( hdr->p_vaddr + hdr->p_memsz );
+	rstart = page_floor( hdr->p_vaddr );
+	rend = page_ceil( hdr->p_vaddr + hdr->p_memsz );
 	
 	fstart = hdr->p_vaddr;
 	fend = hdr->p_vaddr + hdr->p_filesz;
 
 	/* pstart contains the physical offset of the segment data */
-	pstart = (physaddr_t) mod->pstart;
-	pstart += arch_page_floor(hdr->p_offset);
+	imstart = (Elf32_Addr) mod->image_virt;
+	imstart += page_floor(hdr->p_offset);
 
 	/* Calculate the page boundary of the last filled page */
-	frend = arch_page_ceil(fend);
-	
-	/* Determine image end address */
-	if ( rend > mod->end )
-		mod->end = rend;
+	frend = page_ceil(fend);
 
 	/* Map all pages containing file data */
 	for ( caddr = rstart; caddr < frend; caddr = cend ) {
 		cend = caddr + ARCH_PAGE_SIZE;
 		cmaddr = (caddr - mod->base) + mod->mbase;
-		cphys = fphys = caddr - rstart + pstart;
+		impstart = caddr - rstart + imstart;
 		if ( caddr < fstart ) {
 			/* This page does not fully contain the file */
 
@@ -84,19 +85,29 @@ void modlink_parse_load( modinfo_t *elf, Elf32_Phdr *hdr )
 			cphys = physmm_alloc_frame();
 
 			/* Check whether the allocation succeded */
-			if ( cphys == PHYSMM_NO_FRAME ) {
-				goto fstart_nomem;
+			if ( cphys == PHYSMM_NO_FRAME )
+				STERRV( STCODE_NOMEM, 
+						"No memory to allocate segment start frame" );
+			
+			/* Map the page */
+			modlink_map( mod, cmaddr, cphys, flags, STPC );
+			
+			/* Check for errors */
+			if ( STPF ) {
+				STERRV( STCODE_NOMEM, 
+						"Could not map start frame" );
+				physmm_free_frame( cphys );
 			}
 
 			/* Calculate the padding size */
 			psz = fstart - caddr;
 
 			/* Clear the padded start */
-			memset( (void *) cphys, 0, psz );
+			memset( (void *) cmaddr, 0, psz );
 
 			/* Calculate the offsets */
-			cdstart = cphys + psz;
-			cfstart = fphys	+ psz;
+			cdstart = cmaddr + psz;
+			cfstart = impstart + psz;
 			csz = cend - fstart;
 
 			/* Copy in the data */
@@ -109,8 +120,18 @@ void modlink_parse_load( modinfo_t *elf, Elf32_Phdr *hdr )
 			cphys = physmm_alloc_frame();
 
 			/* Check whether we had enough memory */
-			if ( cphys == PHYSMM_NO_FRAME ) {
-				goto fend_nomem;
+			if ( cphys == PHYSMM_NO_FRAME )
+				STERRF( STCODE_NOMEM, 
+						"No memory to allocate segment end frame",
+						undomap );
+			
+			/* Map the page */
+			modlink_map( mod, cmaddr, cphys, flags, STPC );
+			
+			/* Check for errors */
+			if ( STPF ) {
+				physmm_free_frame( cphys );
+				goto undomap;
 			}
 			
 			/* Calculate the padding size */
@@ -118,56 +139,69 @@ void modlink_parse_load( modinfo_t *elf, Elf32_Phdr *hdr )
 		
 			/* Calculate the data size and padding start */
 			csz = fend - caddr;
-			cdstart = cphys + csz;
+			cdstart = cmaddr + csz;
 	
 			/* Clear the padded end */
 			memset( (void *) cdstart, 0, psz );
 
 			/* Copy in the data */
-			memcpy( (void *) cphys, (void *) fphys, csz );
+			memcpy( (void *) cmaddr, (void *) impstart, csz );
 
-		} /* If the page fully contains the file, map it */
-//			else printf("Nocopy\n");
-		platldr_map( mod->id, cmaddr, cphys, flags ); 
+		} else {
+		
+			modlink_remap( mod, cmaddr, impstart, flags, STPC );
+			
+			/* Check for errors */
+			if ( STPF )
+				goto undomap;
+		}
 
 	}
 
 	/* Map all pages which should not contain file data */
 	for ( caddr = frend; caddr < rend; caddr = cend ) {
 		cend = caddr + ARCH_PAGE_SIZE;
-		cphys = physmm_alloc_frame();
 		cmaddr = (caddr - mod->base) + mod->mbase;
-		memset( (void *) cphys, 0, ARCH_PAGE_SIZE );
-		platldr_map( mod->id, cmaddr, cphys, flags );
+		
+		/* Allocate a physical frame */
+		cphys = physmm_alloc_frame();
+
+		/* Check whether we had enough memory */
+		if ( cphys == PHYSMM_NO_FRAME )
+			STERRF( STCODE_NOMEM, 
+					"No memory to allocate segment end frame",
+					undomap );
+		
+		/* Map the frame */
+		modlink_map( mod, cmaddr, cphys, flags, STPC );
+			
+		/* Check for errors */
+		if ( STPF )
+			goto undomap;
+			
+		/* Clear the page */
+		memset( (void *) cmaddr, 0, ARCH_PAGE_SIZE );
 	}
-
-fstart_nomem:
-
-	STERRV( STCODE_NOMEM, 
-		"No memory to allocate segment start frame" );
-	return;
-
-fend_nomem:
 	
+	/* Determine image end address */
+	if ( rend > mod->end )
+		mod->end = rend;
+
+	STRETV;
+
+undomap:
 	fend = caddr;
 
 	/* Unmap all mapped pages */
-	for ( caddr = rstart; caddr < fend; caddr = cend ) {
+	for ( caddr = rstart; caddr < rend; caddr = cend ) {
 		cend = caddr + ARCH_PAGE_SIZE;
 		cmaddr = (caddr - mod->base) + mod->mbase;
 		
-		/* Free the start frame */
-		if ( caddr < fstart ) {
-			cphys = modlink_getphys( cmaddr );
-			physmm_free_frame( cphys );
-		}
-
-		modlink_unmap( cmaddr );
+		/* Actually unmap the page */
+		modlink_unmap_unsafe( mod, cmaddr );
+		
 		
 	}
-
-	STERRV( STCODE_NOMEM, 
-		"No memory to allocate segment end frame" );
 
 	return;
 	
@@ -200,7 +234,7 @@ void modlink_parse_dynamic( modinfo_t *mod, Elf32_Phdr *hdr )
 	Elf32_Dyn *	ent;
 	
 	for (	ent_off = 0; 
-			e < hdr->p_filesz; 
+			ent_off < hdr->p_filesz; 
 			ent_off += sizeof( Elf32_Dyn )
 		) {
 
@@ -254,19 +288,19 @@ void modlink_parse_dynamic( modinfo_t *mod, Elf32_Phdr *hdr )
 
 		switch( ent->d_tag ) {
 			case DT_STRTAB:
-				mod->strtab = ent->d_un.d_ptr;
+				mod->strtab = (ent->d_un.d_ptr - mod->base ) + mod->mbase;
 				break;
 			case DT_SYMTAB:
-				mod->symtab = ent->d_un.d_ptr;
+				mod->symtab = (ent->d_un.d_ptr - mod->base ) + mod->mbase;
 				break;
 			case DT_HASH:
-				mod->hash = ent->d_un.d_ptr;
+				mod->hash = (ent->d_un.d_ptr - mod->base ) + mod->mbase;
 				break;
 			case DT_REL:
-				mod->rel = ent->d_un.d_ptr;
+				mod->rel = (ent->d_un.d_ptr - mod->base ) + mod->mbase;
 				break;
 			case DT_RELA:
-				mod->rela = ent->d_un.d_ptr;
+				mod->rela = (ent->d_un.d_ptr - mod->base ) + mod->mbase;
 				break;
 			case DT_STRSZ:
 				mod->strsz = ent->d_un.d_val;
@@ -275,7 +309,7 @@ void modlink_parse_dynamic( modinfo_t *mod, Elf32_Phdr *hdr )
 				mod->relent = ent->d_un.d_val;
 				break;
 			case DT_RELSZ:
-				mod->relsz = ent->.d_un.d_val;
+				mod->relsz = ent->d_un.d_val;
 				break;
 			case DT_RELASZ:
 				mod->relasz = ent->d_un.d_val;
@@ -286,6 +320,66 @@ void modlink_parse_dynamic( modinfo_t *mod, Elf32_Phdr *hdr )
 		}
 
 	}
+
+}
+
+void modlink_symtab_fixup( modinfo_t *mod ) {
+	int n; 
+	Elf32_Addr symtab = mod->symtab;
+	Elf32_Sym *sym;
+
+	for ( n = 0; n < mod->symsz; n++ ) {
+		sym = ( Elf32_Sym * ) ( n * mod->syment + symtab );
+		
+		if ( sym->st_shndx == SHN_UNDEF )
+			continue;
+		
+		sym->st_value -= mod->base;
+		sym->st_value += mod->mbase;
+	} 
+
+}
+
+void modlink_firstpass( modinfo_t *mod, STPD ) {
+	Elf32_Phdr *phdr;
+	Elf32_Ehdr *ehdr;
+	Elf32_Off phdr_a, phdr_e, phdr_i;
+
+	ehdr = mod->image_virt;
+
+	phdr_i = ehdr->e_phentsize;
+	phdr_a = ehdr->e_phoff;
+	phdr_e = phdr_a + phdr_i * ehdr->e_phnum;
+	
+	mod->base = 0xFFFFFFFF;
+
+	for ( ; phdr_a < phdr_e; phdr_a += phdr_i ) {
+		phdr = (void *)(((uintptr_t)mod->image_virt) + phdr_a);
+		
+		switch ( phdr->p_type ) {
+			case PT_NULL:
+				break;
+			case PT_LOAD:
+				modlink_parse_load( mod, phdr, STPC );
+				if ( STPF ) {
+					modlink_image_end(	mod, 
+										( mod->end - mod->base ) + 
+										mod->mbase );
+					return;
+				}
+				break;
+			case PT_DYNAMIC:
+				modlink_parse_dynamic( mod, phdr );
+				break;
+			default:
+				printf( "Image %08x: Unknown program header "
+					"type %08x!\n", mod, phdr->p_type );
+				break;			
+		}
+	}
+	mod->symsz = elf_hash_size( (Elf32_Word *) mod->hash );
+	modlink_image_end( mod, ( mod->end - mod->base ) + mod->mbase );
+	modlink_symtab_fixup( mod );
 
 }
 
