@@ -133,9 +133,11 @@ void i386_init( multiboot_info_t *mb_info, uint32_t mb_magic )
 			    ( physaddr_t ) &i386_end_kernel );
 
 	physmm_claim_range( 0, 0x100000 );
-	
-	physmm_claim_range( mods, mods + mb_info->mods_count );
-	physmm_claim_range( mb_info, mb_info + 1 );
+	if ( mb_info->mods_count != 0 )
+		physmm_claim_range( (physaddr_t) mods, 
+							(physaddr_t) mods + mb_info->mods_count );
+	physmm_claim_range( (physaddr_t) mb_info,
+						(physaddr_t) mb_info + 1 );
 
 	printf("bootstrap: multiboot modules:\n");
 	for ( idx = 0; idx < mb_info->mods_count; idx++ ) {
@@ -145,7 +147,8 @@ void i386_init( multiboot_info_t *mb_info, uint32_t mb_magic )
 			str = (char *) mods[idx].string;
 		printf("    start: 0x%08x end: 0x%08x str: %s\n",
 			mods[idx].mod_start, mods[idx].mod_end, str );
-		physmm_claim_range( mods[idx].mod_start, mods[idx].mod_end );
+		physmm_claim_range( (physaddr_t) mods[idx].mod_start, 
+							(physaddr_t) mods[idx].mod_end );
 	}
 
 	printf("bootstrap: %u MB of RAM available\n", 
